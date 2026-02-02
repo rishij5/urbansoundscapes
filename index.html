@@ -1,9 +1,59 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
-    <title>This is the title of the webpage!</title>
-  </head>
-  <body>
-    <p>This is an example paragraph. Anything in the <strong>body</strong> tag will appear on the page, just like this <strong>p</strong> tag and its contents.</p>
-  </body>
+<head>
+    <title>Leaflet Restricted Heatmap</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+        body { font-family: sans-serif; margin: 20px; }
+    </style>
+</head>
+<body>
+
+    <h2>Interactive Heatmap (Restricted Area)</h2>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
+
+    <script>
+        // 1. Define your constraints (Example: New York City area)
+        var southWest = L.latLng(40.60, -74.05);
+        var northEast = L.latLng(40.85, -73.85);
+        var bounds = L.latLngBounds(southWest, northEast);
+
+        // 2. Initialize the map
+        var map = L.map('map', {
+            center: [40.7128, -74.0060],
+            zoom: 12,
+            minZoom: 11,
+            maxZoom: 16,
+            maxBounds: bounds,
+            maxBoundsViscosity: 1.0 // Prevents the user from "slipping" outside the box
+        });
+
+        // 3. Add a base layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 4. Sample Heatmap Data [lat, lng, intensity]
+        var heatData = [
+            [40.712, -74.006, 0.5],
+            [40.722, -73.996, 0.8],
+            [40.732, -73.986, 1.0],
+            [40.742, -74.016, 0.6],
+            [40.715, -74.010, 0.9],
+            [40.750, -73.990, 0.4]
+        ];
+
+        // 5. Add the Heatmap Layer
+        var heat = L.heatLayer(heatData, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 10,
+            gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'}
+        }).addTo(map);
+    </script>
+</body>
 </html>
