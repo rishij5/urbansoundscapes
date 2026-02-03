@@ -65,10 +65,15 @@
 // }).addTo(map);
 
 // This is effectively "Dark Positron"
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
+// 1. The Base (Dark background, no text)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    zIndex: 1
+}).addTo(map);
+
+// 2. The Labels (ONLY the text, on a transparent background)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+    zIndex: 2, // Sits on top
+    pane: 'shadowPane' // Optional: puts it above markers if you want
 }).addTo(map);
 
         const zoomDisplay = document.getElementById('zoom-level-display');
