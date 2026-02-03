@@ -43,9 +43,9 @@
         // 2. Initialize the map
         var map = L.map('map', {
             center: [30.287773, -97.745337],
-            zoom: 12,
+            zoom: 15,
             minZoom: 15,
-            maxZoom: 20,
+            maxZoom: 19,
             maxBounds: bounds,
             maxBoundsViscosity: 1.0 // Prevents the user from "slipping" outside the box
         });
@@ -53,7 +53,7 @@
         // 3. Add a base layer (OpenStreetMap)
         // Add CartoDB Dark Matter Tile Layer
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 20,
+    maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
 
