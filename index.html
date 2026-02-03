@@ -10,6 +10,9 @@
     <div id="map"></div>
 
 <div id="zoom-level-display">Zoom Level: 15</div>
+    <div style="position:fixed; top:80px; right:10px; z-index:1000; background:white; padding:10px;">
+    Radius: <input type="range" id="radius-slider" min="5" max="100" value="25">
+</div>
 
 <style>
     #zoom-level-display {
@@ -98,6 +101,9 @@ map.on('zoomend', function() {
             maxZoom: 10,
             gradient: {0.4: '#170e28', 0.65: '#c81b4b', 1: '#faeadf'}
         }).addTo(map);
+        document.getElementById('radius-slider').addEventListener('input', function(e) {
+    heat.setOptions({ radius: parseInt(e.target.value) });
+});
     </script>
 </body>
 </html>
