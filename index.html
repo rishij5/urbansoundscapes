@@ -1,144 +1,137 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Leaflet Restricted Heatmap</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <meta charset="utf-8" />
+    <title>My First Noise Map</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+   
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
+
+
     <style>
-        #map { height: 100vh; width: 100%; }
-        body { margin: 0; 
-            padding: 0; 
-            height: 100%; 
-            overflow: hidden; /* This kills the scrollbar */
-            background-color: black; 
-            font-family: sans-serif; background-color: black; }
+        /* 2. Make the map fill the whole screen */
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        #ui-panel {
+            position: fixed; top: 20px; right: 20px; z-index: 1;
+            background: rgba(15,15,15, 0.9); color: white; padding: 20px;
+            border-radius: 12px; border:1px solid #444; width: 220px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+           
+        }
+        .maplibregl-popup-content {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    padding: 10px;
+        }   
     </style>
-    <div id="map"></div>
-
-<div id="zoom-level-display">Zoom Level: 15</div>
-    <div style="position:fixed; top:80px; right:10px; z-index:1000; background:white; padding:10px;">
-    Radius: <input type="range" id="radius-slider" min="5" max="100" value="25">
-</div>
-
-<style>
-    #zoom-level-display {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 1000; /* Keeps it above the map */
-        background: white;
-        padding: 5px 10px;
-        border: 2px solid rgba(0,0,0,0.2);
-        border-radius: 4px;
-        font-family: Arial, sans-serif;
-        font-weight: bold;
-    }
-</style>
 </head>
 <body>
-
-    <h2>Interactive Heatmap (Restricted Area)</h2>
+    <div id="ui-panel">
+        <h2>URBAN SOUNDSCAPES</h2>
+        <div id="zoom-level">Zoom: 15.0</div>
+        <div style="height:10px; background: linear-gradient(to right, #003366, #f1c40f, #e74c3c); border-radius:5px;"></div>
+    </div>
     <div id="map"></div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://leaflet.github.io/Leaflet.heat/dist/leaflet-heat.js"></script>
-
     <script>
-        // 1. Define your constraints (Example: New York City area)
-        var southWest = L.latLng(30.282104, -97.753234);
-        var northEast = L.latLng(30.294457, -97.739250);
-        var bounds = L.latLngBounds(southWest, northEast);
 
-        // 2. Initialize the map
-        var map = L.map('map', {
-            center: [30.287773, -97.745337],
-            zoom: 15,
-            // minZoom: 15,
-            // maxZoom: 18,
-            maxBounds: null,
-            maxBoundsViscosity: 1.0 // Prevents the user from "slipping" outside the box
-        });
-
-    
-
-        // This is effectively "Dark Positron"
-        // 1. The Base (Dark background, no text)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-            zIndex: 1
-        }).addTo(map);
-        
-        // 2. The Labels (ONLY the text, on a transparent background)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
-            zIndex: 2, // Sits on top
-            pane: 'shadowPane' // Optional: puts it above markers if you want
-        }).addTo(map);
-        
-                const zoomDisplay = document.getElementById('zoom-level-display');
-        
-        // Listen for zoom changes
-        map.on('zoomend', function() {
-            const currentZoom = map.getZoom();
-            zoomDisplay.innerHTML = "Zoom Level: " + currentZoom;
-        });
-        
-        
-        
-                // 4. Sample Heatmap Data [lat, lng, intensity]
-                const rawNoiseData = [
-            [30.26805, -97.74264, 85],
-            [30.26768, -97.74228, 70.2],
-            [30.2678, -97.74164, 68.5],
-            [30.26765, -97.74111, 71],
-            [30.26751, -97.74061, 62.4],
-            [30.26735, -97.74003, 68],
-            [30.26719, -97.73944, 68.5],
-            [30.26702, -97.73885, 64],
-            [30.26688, -97.73831, 66.9],
-            [30.26674, -97.73781, 62.3]
+const bounds = [
+            [-97.756408, 30.254275],
+            [-97.729097, 30.301918]
         ];
 
-        function normalizeNoise(db) {
-            const min = 60;  // 0% Intensity (Blue)
-            const max = 80;  // 100% Intensity (Red)
-            
-            // Linear scaling formula: (x - min) / (max - min)
-            let norm = (db - min) / (max - min);
-            
-            // "Clamp" the values so they don't go below 0 or above 1
-            return Math.max(0, Math.min(1, norm));
-        }
-
-// Transform the raw data into heatData [lat, lng, intensity]
-        const heatData = rawNoiseData.map(point => {
-            return [point[0], point[1], normalizeNoise(point[2])];
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            center: [-97.7410, 30.2675],
+            zoom: 14,
+            maxBounds: bounds,
+            minZoom: 12, 
+            maxZoom: 20
         });
 
-        //fixing heatmap radius/blur
-        const baseZoom = 16
-        const baseRadius = 25
-    
-        // 5. Add the Heatmap Layer
-        var heat = L.heatLayer(heatData, {
-            blur: 15,
-            radius: baseRadius,
-            minOpacity: 0.5, // 0.5 ensures that even "quiet" areas are visible as a faint color
-            maxZoom: 1,
-            gradient: {0.4: '#170e28', 0.65: '#c81b4b', 1: '#faeadf'}
-        }).addTo(map);
+        const rawData = [
+            [30.26805, -97.74264, 85], [30.26765, -97.74111, 65]
+        ];
 
-        function updateHeatmapRadius(){
-            const currentZoom = map.getZoon();
-            const newRadius = baseRadius*Math.pow(2, currentZoom-baseZoom);
-            heat.setOptions({radius: newRadius});
-            if(zoomDisplay){
-                zoomDisplay.innerHTML = "Zoom Level "+currentZoom;
-            }
-        }
-        map.on('zoomend', updateHeatmapRadius);
+        const geojson = {
+            "type": "FeatureCollection",
+            "features": rawData.map(p => ({
+                "type": "Feature",
+                "properties": { "intensity": (p[2] - 60) / 20, "db": p[2] },
+                "geometry": { "type": "Point", "coordinates": [p[1], p[0]] }
+            }))
+        };
 
-        updateHeatmapRadius();
-        document.getElementById('radius-slider').addEventListener('input', function(e) {
-        heat.setOptions({ radius: parseInt(e.target.value) });
+        map.on('load', () => {
+            map.addSource('noise-source', {
+                type: 'geojson',
+                data: geojson
+            });
+
+            map.addLayer({
+                id: 'noise-heat',
+                type: 'heatmap',
+                source: 'noise-source',
+                paint: {
+                    'heatmap-weight': ['interpolate', ['linear'], ['get', 'db'], 60, 0, 90, 1],
+                    'heatmap-radius': [
+                        'interpolate', ['linear'], ['zoom'],
+                        10, 5,
+                        15, 30,
+                        18, 150
+                    ],
+                    'heatmap-color': [
+                        'interpolate', ['linear'], ['heatmap-density'],
+                        0, 'rgba(0,0,255,0)',
+                        0.5, '#f1c40f',
+                        1, '#e74c3c'
+                    ]
+                }
+            });
+
+            map.addLayer({
+                id: 'sensor-dots',
+                type: 'circle',
+                source: 'noise-source',
+                paint: {
+                    'circle-radius': 5,
+                    'circle-color': '#ffffff',
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#000'
+                }
+            });
+
+           
+            map.on('click', 'sensor-dots', (e) => {
+                const coordinates = e.features[0].geometry.coordinates.slice();
+                const dbValue = e.features[0].properties.db; 
+
+                new maplibregl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(`
+                        <div style="color: #111; font-family: sans-serif;">
+                            <b style="font-size: 10px; color: #666; text-transform: uppercase;">Intensity</b><br>
+                            <span style="font-size: 18px; font-weight: bold; color: #e74c3c;">${dbValue} dB</span>
+                        </div>
+                    `)
+                    .addTo(map);
+            });
+
+           
+            map.on('mouseenter', 'sensor-dots', () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', 'sensor-dots', () => { map.getCanvas().style.cursor = ''; });
         });
+
+        
+        map.on('zoom', () => {
+            const z = map.getZoom().toFixed(1);
+            const display = document.getElementById('zoom-level');
+            if (display) display.innerText = "Zoom: " + z;
+        });
+
     </script>
 </body>
 </html>
