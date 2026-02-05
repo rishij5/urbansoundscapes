@@ -8,13 +8,13 @@
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
 
 
     <style>
         /* 2. Make the map fill the whole screen */
-         h2 { 
+        h2 { 
             font-family: "SN Pro", sans-serif;
             font-weight: 700; 
             font-size: 22px; 
@@ -45,10 +45,24 @@
 </head>
 <body>
     <div id="ui-panel">
-        <h2>URBAN SOUNDSCAPES</h2>
-        <div id="zoom-level">Zoom: 15.0</div>
-        <div style="height:10px; background: linear-gradient(to right, #003366, #f1c40f, #e74c3c); border-radius:5px;"></div>
+    <h2>URBAN SOUNDSCAPES</h2>
+    <div id="zoom-level">Zoom: 14.0</div>
+    
+    <div style="margin-top: 15px;">
+        <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">
+            SOUND LEVEL (dB)
+        </div>
+        <div style="height:12px; background: linear-gradient(to right, #000004, #1b0c41, #4b0c6b, #781c6d, #a52c60, #cf4446, #ed6925, #fb9b06, #f7d13d, #fcffa4); border-radius:2px;"></div>
+        <div style="display: flex; justify-content: space-between; font-family: 'Kantumruy Pro'; font-size: 10px; margin-top: 5px; color: #bbb;">
+            <span>40</span>
+            <span>55</span>
+            <span>70</span>
+            <span>85</span>
+            <span>100</span>
+            <span>115</span>
+        </div>
     </div>
+</div>
     <div id="map"></div>
     <script>
 
@@ -69,22 +83,22 @@ const bounds = [
 
         const rawData = [
             [30.26805, -97.74264, 70],
-            [30.26768, -97.74228, 70.2],
-            [30.2678, -97.74164, 68.5],
-            [30.26765, -97.74111, 71],
-            [30.26751, -97.74061, 62.4],
-            [30.26735, -97.74003, 68],
-            [30.26719, -97.73944, 68.5],
-            [30.26702, -97.73885, 64],
-            [30.26688, -97.73831, 66.9],
-            [30.26674, -97.73781, 62.3]
+    [30.26768, -97.74228, 70.2],
+    [30.2678, -97.74164, 68.5],
+    [30.26765, -97.74111, 71],
+    [30.26751, -97.74061, 62.4],
+    [30.26735, -97.74003, 68],
+    [30.26719, -97.73944, 68.5],
+    [30.26702, -97.73885, 64],
+    [30.26688, -97.73831, 66.9],
+    [30.26674, -97.73781, 62.3]
         ];
 
         const geojson = {
             "type": "FeatureCollection",
             "features": rawData.map(p => ({
                 "type": "Feature",
-                "properties": { "intensity": (p[2] - 60) / 20, "db": p[2] },
+                "properties": { "db": p[2]},
                 "geometry": { "type": "Point", "coordinates": [p[1], p[0]] }
             }))
         };
@@ -95,12 +109,28 @@ const bounds = [
                 data: geojson
             });
 
+            const layers = map.getStyle().layers;
+            let firstSymbolId;
+            for (let i=0; i<layers.length; i++){
+                if (layers[i].type === 'symbol'){
+                    firstSymbolId = layers[i].id;
+                    break;
+                }
+            }
+
             map.addLayer({
                 id: 'noise-heat',
                 type: 'heatmap',
                 source: 'noise-source',
                 paint: {
-                    'heatmap-weight': ['interpolate', ['linear'], ['get', 'db'], 60, 0, 90, 1],
+                    'heatmap-opacity': 0.7,
+                    'heatmap-intensity': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        0,1,15,2.5
+                    ],
+                    'heatmap-weight': ['interpolate', ['linear'], ['get', 'db'], 40, 0, 115, 1],
                     'heatmap-radius': [
                         'interpolate', ['linear'], ['zoom'],
                         10, 5,
@@ -108,28 +138,45 @@ const bounds = [
                         18, 150
                     ],
                     'heatmap-color': [
-                        'interpolate', ['linear'], ['heatmap-density'],
-                        0, 'rgba(0,0,255,0)',
-                        0.5, '#f1c40f',
-                        1, '#e74c3c'
+                        'interpolate',
+    ['linear'],
+    ['heatmap-density'],
+    0, 'rgba(0,0,4,0)',       // Transparent for zero density
+    0.1, '#1b0c41',           // Dark Purple
+    0.3, '#4b0c6b',           // Mid Purple
+    0.5, '#a52c60',           // Magenta/Red
+    0.7, '#ed6925',           // Orange
+    0.9, '#fb9b06',           // Yellow/Orange
+    1, '#fcffa4'
                     ]
                 }
-            });
+            }, firstSymbolId);
 
             map.addLayer({
                 id: 'sensor-dots',
                 type: 'circle',
                 source: 'noise-source',
                 paint: {
-                    'circle-radius': 5,
+                    'circle-radius': 3,
                     'circle-color': '#ffffff',
                     'circle-stroke-width': 2,
                     'circle-stroke-color': '#000'
                 }
             });
 
+            map.addLayer({
+    id: 'sensor-hitbox',
+    type: 'circle',
+    source: 'noise-source',
+    paint: {
+        'circle-radius': 9, // The invisible clickable area
+        'circle-opacity': 0,  // Makes it invisible
+        'circle-pitch-alignment': 'map'
+    }
+});
+
            
-            map.on('click', 'sensor-dots', (e) => {
+            map.on('click', 'sensor-hitbox', (e) => {
                 const coordinates = e.features[0].geometry.coordinates.slice();
                 const dbValue = e.features[0].properties.db; 
 
@@ -145,8 +192,8 @@ const bounds = [
             });
 
            
-            map.on('mouseenter', 'sensor-dots', () => { map.getCanvas().style.cursor = 'pointer'; });
-            map.on('mouseleave', 'sensor-dots', () => { map.getCanvas().style.cursor = ''; });
+            map.on('mouseenter', 'sensor-hitbox', () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', 'sensor-hitbox', () => { map.getCanvas().style.cursor = ''; });
         });
 
         
