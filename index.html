@@ -4,16 +4,14 @@
     <meta charset="utf-8" />
     <title>Urban Soundscapes</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
-   
+    
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
-
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
 
     <style>
-        /* 2. Make the map fill the whole screen */
         h2 { 
             font-family: "SN Pro", sans-serif;
             font-weight: 700; 
@@ -22,7 +20,7 @@
             letter-spacing: 1px;
         }
 
-        #zoom-level, .maplibregl-popup-content {
+        #zoom-level, .maplibregl-popup-content, #active-hour {
             font-family: "Kantumruy Pro", sans-serif;
             font-weight: 400;
         }
@@ -33,40 +31,61 @@
             background: rgba(15,15,15, 0.9); color: white; padding: 20px;
             border-radius: 12px; border:1px solid #444; width: 220px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-           
         }
         .maplibregl-popup-content {
-    background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    padding: 10px;
-        }   
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            padding: 10px;
+        }
+        input[type=range] {
+            width: 100%;
+            margin-top: 10px;
+            cursor: pointer;
+            accent-color: #ffffff;
+        }
     </style>
 </head>
 <body>
     <div id="ui-panel">
-    <h2>URBAN SOUNDSCAPES</h2>
-    <div id="zoom-level">Zoom: 14.0</div>
-    
-    <div style="margin-top: 15px;">
-        <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">
-            SOUND LEVEL (dB)
+        <h2>URBAN SOUNDSCAPES</h2>
+        <div id="zoom-level">Zoom: 14.0</div>
+        <div style="margin-top: 15px;">
+    <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">DAY OF WEEK</div>
+    <select id="day-selector" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; font-family: 'Kantumruy Pro';">
+        <option value="0">Monday</option>
+        <option value="1">Tuesday</option>
+        <option value="2">Wednesday</option>
+        <option value="3"selected>Thursday</option>
+        <option value="4" >Friday</option>
+        <option value="5">Saturday</option>
+        <option value="6">Sunday</option>
+    </select>
+</div>
+        <div style="margin-top: 15px;">
+            <div id="active-hour" style="font-size: 16px; color: #ffffff; margin-bottom: 5px; font-weight: bold;">12:00 PM</div>
+            <input id="slider" type="range" min="0" max="23" step="1" value="23">
         </div>
-        <div style="height:12px; background: linear-gradient(to right, #000004, #1b0c41, #4b0c6b, #781c6d, #a52c60, #cf4446, #ed6925, #fb9b06, #f7d13d, #fcffa4); border-radius:2px;"></div>
-        <div style="display: flex; justify-content: space-between; font-family: 'Kantumruy Pro'; font-size: 10px; margin-top: 5px; color: #bbb;">
-            <span>40</span>
-            <span>55</span>
-            <span>70</span>
-            <span>85</span>
-            <span>100</span>
-            <span>115</span>
+
+        <div style="margin-top: 15px;">
+            <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">
+                SOUND LEVEL (dB)
+            </div>
+            <div style="height:12px; background: linear-gradient(to right, #000004, #1b0c41, #4b0c6b, #781c6d, #a52c60, #cf4446, #ed6925, #fb9b06, #f7d13d, #fcffa4); border-radius:2px;"></div>
+            <div style="display: flex; justify-content: space-between; font-family: 'Kantumruy Pro'; font-size: 10px; margin-top: 5px; color: #bbb;">
+                <span>40</span>
+                <span>55</span>
+                <span>70</span>
+                <span>85</span>
+                <span>100</span>
+                <span>115</span>
+            </div>
         </div>
     </div>
-</div>
     <div id="map"></div>
     <script>
 
-const bounds = [
+        const bounds = [
             [-97.756408, 30.254275],
             [-97.729097, 30.301918]
         ];
@@ -82,43 +101,45 @@ const bounds = [
         });
 
         const rawData = [
-            [30.26805, -97.74264, 70],
-[30.26768, -97.74228, 70.2],
-[30.2678, -97.74164, 68.5],
-[30.26765, -97.74111, 71],
-[30.26751, -97.74061, 62.4],
-[30.26735, -97.74003, 68],
-[30.26719, -97.73944, 68.5],
-[30.26702, -97.73885, 64],
-[30.26688, -97.73831, 66.9],
-[30.26674, -97.73781, 62.3],
-[30.26784542, -97.74242967, 61.8],
-[30.26770326, -97.74217694, 70.9],
-[30.26769805, -97.74123851, 73.5],
-[30.267545, -97.74102347, 95.1],
-[30.26746245, -97.74025103, 100.5],
-[30.26720023, -97.73933553, 78.0],
-[30.26720838, -97.73903318, 96.8],
-[30.26680634, -97.73819901, 99.2],
-[30.26685978, -97.7387344, 95.2],
-[30.26711207, -97.73925505, 101.5],
-[30.26724972, -97.73996949, 103.1],
-[30.26739878, -97.74076833, 102.9],
-[30.26767011, -97.74147932, 77.6],
-[30.26803372, -97.7422055, 66.3],
-[30.26805178, -97.74264499, 68.9],
-[30.26827043, -97.74360053, 65.3],
-[30.26850171, -97.74444383, 63.1],
-[30.26840272, -97.74512152, 73.9],
-[30.26853167, -97.74496862, 88.0],
-[30.26743042, -97.74020428, 95.3]
+            [30.26805, -97.74264, 70, 23, 3],
+[30.26768, -97.74228, 70.2, 23, 3],
+[30.2678, -97.74164, 68.5, 23, 3],
+[30.26765, -97.74111, 71, 23, 3],
+[30.26751, -97.74061, 62.4, 23, 3],
+[30.26735, -97.74003, 68, 23, 3],
+[30.26719, -97.73944, 68.5, 23, 3],
+[30.26702, -97.73885, 64, 23, 3],
+[30.26688, -97.73831, 66.9, 23, 3],
+[30.26674, -97.73781, 62.3, 23, 3],
+[30.26784542, -97.74242967, 61.8, 23, 3],
+[30.26770326, -97.74217694, 70.9, 23, 3],
+[30.26769805, -97.74123851, 73.5, 23, 3],
+[30.267545, -97.74102347, 95.1, 23, 3],
+[30.26746245, -97.74025103, 100.5, 23, 3],
+[30.26720023, -97.73933553, 78.0, 23, 3],
+[30.26720838, -97.73903318, 96.8, 23, 3],
+[30.26680634, -97.73819901, 99.2, 23, 3],
+[30.26685978, -97.7387344, 95.2, 23, 3],
+[30.26711207, -97.73925505, 101.5, 23, 3],
+[30.26724972, -97.73996949, 103.1, 23, 3],
+[30.26739878, -97.74076833, 102.9, 23, 3],
+[30.26767011, -97.74147932, 77.6, 23, 3],
+[30.26803372, -97.7422055, 66.3, 23, 3],
+[30.26805178, -97.74264499, 68.9, 23, 3],
+[30.26827043, -97.74360053, 65.3, 23, 3],
+[30.26850171, -97.74444383, 63.1, 23, 3],
+[30.26840272, -97.74512152, 73.9, 23, 3],
+[30.26853167, -97.74496862, 88.0, 23, 3],
+[30.26743042, -97.74020428, 95.3, 23, 3]
         ];
+
+
 
         const geojson = {
             "type": "FeatureCollection",
             "features": rawData.map(p => ({
                 "type": "Feature",
-                "properties": { "db": p[2]},
+                "properties": { "db": p[2], "hour": p[3], "day": p[4]},
                 "geometry": { "type": "Point", "coordinates": [p[1], p[0]] }
             }))
         };
@@ -159,15 +180,15 @@ const bounds = [
                     ],
                     'heatmap-color': [
                         'interpolate',
-    ['linear'],
-    ['heatmap-density'],
-    0, 'rgba(0,0,4,0)',       // Transparent for zero density
-    0.1, '#1b0c41',           // Dark Purple
-    0.3, '#4b0c6b',           // Mid Purple
-    0.5, '#a52c60',           // Magenta/Red
-    0.7, '#ed6925',           // Orange
-    0.9, '#fb9b06',           // Yellow/Orange
-    1, '#fcffa4'
+                        ['linear'],
+                        ['heatmap-density'],
+                        0, 'rgba(0,0,4,0)',
+                        0.1, '#1b0c41',
+                        0.3, '#4b0c6b',
+                        0.5, '#a52c60',
+                        0.7, '#ed6925',
+                        0.9, '#fb9b06',
+                        1, '#fcffa4'
                     ]
                 }
             }, firstSymbolId);
@@ -185,38 +206,62 @@ const bounds = [
             });
 
             map.addLayer({
-    id: 'sensor-hitbox',
-    type: 'circle',
-    source: 'noise-source',
-    paint: {
-        'circle-radius': 9, // The invisible clickable area
-        'circle-opacity': 0,  // Makes it invisible
-        'circle-pitch-alignment': 'map'
-    }
-});
+                id: 'sensor-hitbox',
+                type: 'circle',
+                source: 'noise-source',
+                paint: {
+                    'circle-radius': 9,
+                    'circle-opacity': 0,
+                    'circle-pitch-alignment': 'map'
+                }
+            });
 
+            const updateFilter = () => {
+    const hour = parseInt(document.getElementById('slider').value);
+    const day = parseInt(document.getElementById('day-selector').value);
+
+    const filter = ['all', 
+        ['==', ['get', 'hour'], hour],
+        ['==', ['get', 'day'], day]
+    ];
+
+    map.setFilter('noise-heat', filter);
+    map.setFilter('sensor-dots', filter);
+    map.setFilter('sensor-hitbox', filter);
+    
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    document.getElementById('active-hour').innerText = `${displayHour}:00 ${ampm}`;
+};
+
+            updateFilter(23);
+
+            document.getElementById('slider').addEventListener('input', updateFilter);
+document.getElementById('day-selector').addEventListener('change', updateFilter);
            
             map.on('click', 'sensor-hitbox', (e) => {
                 const coordinates = e.features[0].geometry.coordinates.slice();
                 const dbValue = e.features[0].properties.db; 
+                const hourValue = e.features[0].properties.hour;
+
+                const ampm = hourValue >= 12 ? 'PM' : 'AM';
+                const displayHour = hourValue % 12 || 12;
 
                 new maplibregl.Popup()
                     .setLngLat(coordinates)
                     .setHTML(`
                         <div style="color: #111; font-family: sans-serif;">
-                            <b style="font-size: 10px; color: #666; text-transform: uppercase;">Intensity</b><br>
+                            <b style="font-size: 10px; color: #666; text-transform: uppercase;">Recorded at ${displayHour}:00 ${ampm}</b><br>
                             <span style="font-size: 18px; font-weight: bold; color: #e74c3c;">${dbValue} dB</span>
                         </div>
                     `)
                     .addTo(map);
             });
 
-           
             map.on('mouseenter', 'sensor-hitbox', () => { map.getCanvas().style.cursor = 'pointer'; });
             map.on('mouseleave', 'sensor-hitbox', () => { map.getCanvas().style.cursor = ''; });
         });
 
-        
         map.on('zoom', () => {
             const z = map.getZoom().toFixed(1);
             const display = document.getElementById('zoom-level');
