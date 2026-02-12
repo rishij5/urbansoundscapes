@@ -7,6 +7,8 @@
     
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
@@ -51,17 +53,17 @@
         <h2>URBAN SOUNDSCAPES</h2>
         <div id="zoom-level">Zoom: 14.0</div>
         <div style="margin-top: 15px;">
-    <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">DAY OF WEEK</div>
-    <select id="day-selector" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; font-family: 'Kantumruy Pro';">
-        <option value="0">Monday</option>
-        <option value="1">Tuesday</option>
-        <option value="2">Wednesday</option>
-        <option value="3"selected>Thursday</option>
-        <option value="4" >Friday</option>
-        <option value="5">Saturday</option>
-        <option value="6">Sunday</option>
-    </select>
-</div>
+            <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">DAY OF WEEK</div>
+            <select id="day-selector" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; font-family: 'Kantumruy Pro';">
+                <option value="0">Monday</option>
+                <option value="1">Tuesday</option>
+                <option value="2">Wednesday</option>
+                <option value="3" selected>Thursday</option>
+                <option value="4">Friday</option>
+                <option value="5">Saturday</option>
+                <option value="6">Sunday</option>
+            </select>
+        </div>
         <div style="margin-top: 15px;">
             <div id="active-hour" style="font-size: 16px; color: #ffffff; margin-bottom: 5px; font-weight: bold;">12:00 PM</div>
             <input id="slider" type="range" min="0" max="23" step="1" value="23">
@@ -83,8 +85,8 @@
         </div>
     </div>
     <div id="map"></div>
-    <script>
 
+    <script>
         const bounds = [
             [-97.756408, 30.254275],
             [-97.729097, 30.301918]
@@ -100,51 +102,38 @@
             maxZoom: 20
         });
 
-        const rawData = [
-            [30.26805, -97.74264, 70, 23, 3],
-[30.26768, -97.74228, 70.2, 23, 3],
-[30.2678, -97.74164, 68.5, 23, 3],
-[30.26765, -97.74111, 71, 23, 3],
-[30.26751, -97.74061, 62.4, 23, 3],
-[30.26735, -97.74003, 68, 23, 3],
-[30.26719, -97.73944, 68.5, 23, 3],
-[30.26702, -97.73885, 64, 23, 3],
-[30.26688, -97.73831, 66.9, 23, 3],
-[30.26674, -97.73781, 62.3, 23, 3],
-[30.26784542, -97.74242967, 61.8, 23, 3],
-[30.26770326, -97.74217694, 70.9, 23, 3],
-[30.26769805, -97.74123851, 73.5, 23, 3],
-[30.267545, -97.74102347, 95.1, 23, 3],
-[30.26746245, -97.74025103, 100.5, 23, 3],
-[30.26720023, -97.73933553, 78.0, 23, 3],
-[30.26720838, -97.73903318, 96.8, 23, 3],
-[30.26680634, -97.73819901, 99.2, 23, 3],
-[30.26685978, -97.7387344, 95.2, 23, 3],
-[30.26711207, -97.73925505, 101.5, 23, 3],
-[30.26724972, -97.73996949, 103.1, 23, 3],
-[30.26739878, -97.74076833, 102.9, 23, 3],
-[30.26767011, -97.74147932, 77.6, 23, 3],
-[30.26803372, -97.7422055, 66.3, 23, 3],
-[30.26805178, -97.74264499, 68.9, 23, 3],
-[30.26827043, -97.74360053, 65.3, 23, 3],
-[30.26850171, -97.74444383, 63.1, 23, 3],
-[30.26840272, -97.74512152, 73.9, 23, 3],
-[30.26853167, -97.74496862, 88.0, 23, 3],
-[30.26743042, -97.74020428, 95.3, 23, 3]
-        ];
+        // Helper function to turn CSV rows into GeoJSON
+        function transformToGeoJSON(data) {
+            return {
+                "type": "FeatureCollection",
+                "features": data.map(p => ({
+                    "type": "Feature",
+                    "properties": { 
+                        "db": parseFloat(p[2]), 
+                        "hour": parseInt(p[3]), 
+                        "day": parseInt(p[4])
+                    },
+                    "geometry": { 
+                        "type": "Point", 
+                        "coordinates": [parseFloat(p[1]), parseFloat(p[0])] 
+                    }
+                }))
+            };
+        }
 
+        map.on('load', async () => {
+            // Load the CSV file from the same directory
+            const response = await fetch('data.csv');
+            const csvString = await response.text();
+            
+            // Parse CSV (assuming no header row)
+            const results = Papa.parse(csvString, {
+                skipEmptyLines: true,
+                header: false 
+            });
 
+            const geojson = transformToGeoJSON(results.data);
 
-        const geojson = {
-            "type": "FeatureCollection",
-            "features": rawData.map(p => ({
-                "type": "Feature",
-                "properties": { "db": p[2], "hour": p[3], "day": p[4]},
-                "geometry": { "type": "Point", "coordinates": [p[1], p[0]] }
-            }))
-        };
-
-        map.on('load', () => {
             map.addSource('noise-source', {
                 type: 'geojson',
                 data: geojson
@@ -217,28 +206,28 @@
             });
 
             const updateFilter = () => {
-    const hour = parseInt(document.getElementById('slider').value);
-    const day = parseInt(document.getElementById('day-selector').value);
+                const hour = parseInt(document.getElementById('slider').value);
+                const day = parseInt(document.getElementById('day-selector').value);
 
-    const filter = ['all', 
-        ['==', ['get', 'hour'], hour],
-        ['==', ['get', 'day'], day]
-    ];
+                const filter = ['all', 
+                    ['==', ['get', 'hour'], hour],
+                    ['==', ['get', 'day'], day]
+                ];
 
-    map.setFilter('noise-heat', filter);
-    map.setFilter('sensor-dots', filter);
-    map.setFilter('sensor-hitbox', filter);
-    
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    document.getElementById('active-hour').innerText = `${displayHour}:00 ${ampm}`;
-};
+                map.setFilter('noise-heat', filter);
+                map.setFilter('sensor-dots', filter);
+                map.setFilter('sensor-hitbox', filter);
+                
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const displayHour = hour % 12 || 12;
+                document.getElementById('active-hour').innerText = `${displayHour}:00 ${ampm}`;
+            };
 
-            updateFilter(23);
+            updateFilter();
 
             document.getElementById('slider').addEventListener('input', updateFilter);
-document.getElementById('day-selector').addEventListener('change', updateFilter);
-           
+            document.getElementById('day-selector').addEventListener('change', updateFilter);
+            
             map.on('click', 'sensor-hitbox', (e) => {
                 const coordinates = e.features[0].geometry.coordinates.slice();
                 const dbValue = e.features[0].properties.db; 
