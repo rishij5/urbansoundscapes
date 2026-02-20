@@ -208,11 +208,31 @@
             };
 
             document.getElementById('submit-report').onclick = async () => {
-                const loc = map.getCenter();
-                const vibe = vibeData[slider.value];
-                const { error } = await supabaseClient.from('self_reports').insert([{ lat: loc.lat, lng: loc.lng, db_level: vibe.db, vibe_label: vibe.label }]);
-                if (!error) { modal.style.display = 'none'; fetchGlobalReports(); }
-            };
+    // Get actual device GPS coordinates
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const vibe = vibeData[document.getElementById('vibe-slider').value];
+
+        const { error } = await supabaseClient
+            .from('self_reports')
+            .insert([{ 
+                lat: lat, 
+                lng: lng, 
+                db_level: vibe.db, 
+                vibe_label: vibe.label 
+            }]);
+
+        if (!error) {
+            document.getElementById('report-modal').style.display = 'none';
+            fetchGlobalReports();
+            alert("Vibe reported at your current GPS location!");
+        }
+    }, (err) => {
+        alert("Geolocation error: Please enable location services.");
+        console.error(err);
+    });
+};
         }
 
         function setupControls() {
