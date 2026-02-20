@@ -94,7 +94,6 @@
     <div id="ui-panel">
         <button id="toggle-panel-btn" title="Toggle Panel">−</button>
         <h2>URBAN SOUNDSCAPES</h2>
-        <div id="zoom-level">Zoom: 14.0</div>
         <div class="control-group">
             <div class="label-tiny">DAY OF WEEK</div>
             <select id="day-selector" style="width:100%; background:#222; color:white; border:1px solid #444; border-radius:4px; padding:5px;">
@@ -415,7 +414,7 @@ if (!visitorId) {
         map.on('mouseenter', 'user-reports-layer', () => map.getCanvas().style.cursor = 'pointer');
         map.on('mouseleave', 'user-reports-layer', () => map.getCanvas().style.cursor = '');
         
-        map.on('zoom', () => document.getElementById('zoom-level').innerText = `Zoom: ${map.getZoom().toFixed(1)}`);
+        
         const panel = document.getElementById('ui-panel');
 const toggleBtn = document.getElementById('toggle-panel-btn');
 
