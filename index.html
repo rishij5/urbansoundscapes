@@ -306,10 +306,18 @@ if (!visitorId) {
 }
 
         function setupReporting() {
-            const modal = document.getElementById('report-modal');
-            const slider = document.getElementById('vibe-slider');
-            document.getElementById('add-report-btn').onclick = () => modal.style.display = 'flex';
-            document.getElementById('cancel-report').onclick = () => modal.style.display = 'none';
+    const modal = document.getElementById('report-modal');
+    const slider = document.getElementById('vibe-slider');
+    
+    document.getElementById('add-report-btn').onclick = () => {
+        modal.style.display = 'flex';
+    };
+
+    document.getElementById('cancel-report').onclick = () => {
+        modal.style.display = 'none';
+        // FIX: Force the map to check its size and interactions again
+        map.resize(); 
+    };
             slider.oninput = (e) => {
                 const val = e.target.value;
                 document.getElementById('vibe-label').innerText = vibeData[val].label;
@@ -426,13 +434,26 @@ toggleBtn.onclick = () => {
 
 window.deleteReport = async (id) => {
     if (!confirm("Remove this report from the map?")) return;
-    const { error } = await supabaseClient.from('self_reports').delete().eq('id', id);
-    if (!error) {
-        fetchGlobalReports();
-        map.getCanvas().style.cursor = '';
-        // Close any open popups
+
+    // 1. Delete from the main table
+    // (The confirmations table will auto-delete due to 'ON DELETE CASCADE' in our SQL)
+    const { error } = await supabaseClient
+        .from('self_reports')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error("Delete error:", error);
+        alert("Could not delete: " + error.message);
+    } else {
+        // 2. Refresh the map data immediately
+        await fetchGlobalReports();
+        
+        // 3. Force close the popup
         const popups = document.getElementsByClassName('maplibregl-popup');
         while(popups[0]) popups[0].remove();
+        
+        alert("Report removed.");
     }
 };
     </script>
