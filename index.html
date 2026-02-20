@@ -136,10 +136,15 @@
     <div id="map"></div>
 
     <script>
+        let visitorId = localStorage.getItem('vibe_visitor_id');
+if (!visitorId) {
+    visitorId = Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('vibe_visitor_id', visitorId);
+}
         const SUPABASE_URL = 'https://mjwowewyqsrtyovhmmnf.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qd293ZXd5cXNydHlvdmhtbW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjEzMjQsImV4cCI6MjA4NzE5NzMyNH0.UgPsfu0BrKGDt5LdJAgsqKHxElocX0LHIoxmj44cE6o';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+        
         const vibeData = {
             1: { label: "Quiet (40-55 dB)", desc: "Empty library corner, whispers only.", db: 45 },
             2: { label: "Moderate (55-70 dB)", desc: "Coffee shop chatter, light music.", db: 65 },
@@ -304,7 +309,13 @@
             document.getElementById('submit-report').onclick = async () => {
                 navigator.geolocation.getCurrentPosition(async (pos) => {
                     const vibe = vibeData[slider.value];
-                    const { error } = await supabaseClient.from('self_reports').insert([{ lat: pos.coords.latitude, lng: pos.coords.longitude, db_level: vibe.db, vibe_label: vibe.label }]);
+                    const { error } = await supabaseClient.from('self_reports').insert([{ 
+    lat: pos.coords.latitude, 
+    lng: pos.coords.longitude, 
+    db_level: vibe.db, 
+    vibe_label: vibe.label,
+    user_id: visitorId // Tag the report with your ID
+}]);
                     if (!error) { modal.style.display = 'none'; fetchGlobalReports(); alert("Vibe reported!"); }
                 }, (err) => alert("Please enable GPS."));
             };
@@ -325,11 +336,28 @@
             update();
         }
 
-        window.confirmReport = async (id) => {
-            if (localStorage.getItem(`confirmed_${id}`)) { alert("Already verified!"); return; }
-            const { error } = await supabaseClient.rpc('increment_confirmations', { row_id: id });
-            if (!error) { localStorage.setItem(`confirmed_${id}`, true); fetchGlobalReports(); }
-        };
+       window.confirmReport = async (id) => {
+    // Generate or get a persistent ID for this browser
+    let visitorId = localStorage.getItem('vibe_visitor_id');
+    if (!visitorId) {
+        visitorId = Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('vibe_visitor_id', visitorId);
+    }
+
+    // Call the updated function with the visitorId
+    const { error } = await supabaseClient.rpc('increment_confirmations', { 
+        row_id: id, 
+        visitor_id: visitorId 
+    });
+    
+    if (error) {
+        // This will now show the 'Already verified' message from the database
+        alert(error.message.includes('already verified') ? "You've already verified this!" : "Error processing verification.");
+    } else {
+        fetchGlobalReports();
+        alert("Thanks for verifying!");
+    }
+};
 
         // Click interaction for Sensor Dots
         map.on('click', 'sensor-hitbox', (e) => {
@@ -349,28 +377,22 @@
         // Click interaction for Student Reports
        map.on('click', 'user-reports-layer', (e) => {
     const p = e.features[0].properties;
+    
+    // Check if the current user owns this report
+    const isOwner = p.user_id === visitorId;
+    const deleteBtn = isOwner ? 
+        `<button onclick="deleteReport(${p.id})" style="margin-top:8px; background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; width:100%; font-size:11px;">Delete My Report</button>` : '';
+
     new maplibregl.Popup()
         .setLngLat(e.features[0].geometry.coordinates)
         .setHTML(`
-            <div style="text-align:center; padding: 5px;">
-                <div style="font-size: 10px; color: #fff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Student Report</div>
-                <div style="font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 8px;">${p.vibe}</div>
-                <button onclick="confirmReport(${p.id})" style="
-                    background: #ffff; 
-                    color: #000; 
-                    border: none; 
-                    padding: 8px 12px; 
-                    border-radius: 6px; 
-                    cursor: pointer; 
-                    font-weight: bold;
-                    width: 100%;
-                    font-family: 'SN Pro', sans-serif;
-                ">
-                    Sounds Right! (${p.confirms})
-                </button>
+            <div style="text-align:center; color:white;">
+                <div style="font-size:10px; color:#888; text-transform:uppercase;">Student Report</div>
+                <b style="color:#00f2ff; font-size:16px;">${p.vibe}</b><br>
+                <button onclick="confirmReport(${p.id})" style="margin-top:8px; background:#00f2ff; color:black; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Sounds Right! (${p.confirms})</button>
+                ${deleteBtn}
             </div>
-        `)
-        .addTo(map);
+        `).addTo(map);
 });
 
         map.on('mouseenter', 'sensor-hitbox', () => map.getCanvas().style.cursor = 'pointer');
@@ -386,6 +408,18 @@ toggleBtn.onclick = () => {
     panel.classList.toggle('minimized');
     // Change the icon from minus to gear/plus when hidden
     toggleBtn.innerText = panel.classList.contains('minimized') ? "⚙" : "−";
+};
+
+window.deleteReport = async (id) => {
+    if (!confirm("Remove this report from the map?")) return;
+    const { error } = await supabaseClient.from('self_reports').delete().eq('id', id);
+    if (!error) {
+        fetchGlobalReports();
+        map.getCanvas().style.cursor = '';
+        // Close any open popups
+        const popups = document.getElementsByClassName('maplibregl-popup');
+        while(popups[0]) popups[0].remove();
+    }
 };
     </script>
 </body>
