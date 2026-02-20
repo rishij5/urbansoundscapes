@@ -180,19 +180,34 @@
         });
 
         async function fetchGlobalReports() {
-            const { data, error } = await supabaseClient.from('self_reports').select('*').gt('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
-            if (data) {
-                const geojson = {
-                    type: "FeatureCollection",
-                    features: data.map(r => ({
-                        type: "Feature",
-                        properties: { db: r.db_level, vibe: r.vibe_label, id: r.id, confirms: r.confirmations || 0 },
-                        geometry: { type: "Point", coordinates: [r.lng, r.lat] }
-                    }))
-                };
-                map.getSource('user-reports').setData(geojson);
-            }
-        }
+    const { data, error } = await supabaseClient
+        .from('self_reports')
+        .select('*')
+        .gt('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
+
+    if (error) {
+        console.error("Fetch error:", error);
+        return;
+    }
+
+    if (data) {
+        const geojson = {
+            type: "FeatureCollection",
+            features: data.map(r => ({
+                type: "Feature",
+                // Ensure confirmations (DB) matches confirms (Layer)
+                properties: { 
+                    db: r.db_level, 
+                    vibe: r.vibe_label, 
+                    id: r.id, 
+                    confirms: r.confirmations || 0 
+                },
+                geometry: { type: "Point", coordinates: [r.lng, r.lat] }
+            }))
+        };
+        map.getSource('user-reports').setData(geojson);
+    }
+}
 
         function setupReporting() {
             const modal = document.getElementById('report-modal');
@@ -250,9 +265,23 @@
         }
 
         window.confirmReport = async (id) => {
-            await supabaseClient.rpc('increment_confirmations', { row_id: id });
-            fetchGlobalReports();
-        };
+    // Prevent double-voting in the same browser session
+    if (localStorage.getItem(`confirmed_${id}`)) {
+        alert("You've already verified this vibe!");
+        return;
+    }
+
+    const { error } = await supabaseClient.rpc('increment_confirmations', { row_id: id });
+    
+    if (!error) {
+        localStorage.setItem(`confirmed_${id}`, true);
+        fetchGlobalReports(); // Refresh map immediately
+        alert("Thanks for verifying!");
+    } else {
+        console.error("RPC Error:", error);
+        alert("Verification failed. Check your Supabase SQL function.");
+    }
+};
 
         map.on('click', 'user-reports-layer', (e) => {
             const p = e.features[0].properties;
