@@ -264,31 +264,44 @@
             update();
         }
 
-        window.confirmReport = async (id) => {
-    // Prevent double-voting in the same browser session
-    if (localStorage.getItem(`confirmed_${id}`)) {
-        alert("You've already verified this vibe!");
-        return;
-    }
+       window.confirmReport = async (id) => {
+            // Prevent double-voting in the same session
+            if (localStorage.getItem(`confirmed_${id}`)) {
+                alert("You've already verified this vibe!");
+                return;
+            }
 
-    const { error } = await supabaseClient.rpc('increment_confirmations', { row_id: id });
-    
-    if (!error) {
-        localStorage.setItem(`confirmed_${id}`, true);
-        fetchGlobalReports(); // Refresh map immediately
-        alert("Thanks for verifying!");
-    } else {
-        console.error("RPC Error:", error);
-        alert("Verification failed. Check your Supabase SQL function.");
-    }
-};
+            // Call the SQL function in Supabase
+            const { error } = await supabaseClient.rpc('increment_confirmations', { row_id: id });
+            
+            if (!error) {
+                localStorage.setItem(`confirmed_${id}`, true);
+                fetchGlobalReports(); // Refresh map immediately
+                alert("Thanks for verifying!");
+            } else {
+                console.error("RPC Error:", error);
+                alert("Verification failed. Make sure you ran the SQL script in Supabase.");
+            }
+        };
 
         map.on('click', 'user-reports-layer', (e) => {
             const p = e.features[0].properties;
-            new maplibregl.Popup().setLngLat(e.features[0].geometry.coordinates).setHTML(`<div style="text-align:center;"><b>${p.vibe}</b><br><button onclick="confirmReport(${p.id})">Sounds Right! (${p.confirms})</button></div>`).addTo(map);
+            new maplibregl.Popup()
+                .setLngLat(e.features[0].geometry.coordinates)
+                .setHTML(`
+                    <div style="text-align:center; color: #111;">
+                        <b>${p.vibe}</b><br>
+                        <button onclick="confirmReport(${p.id})" style="margin-top:8px; cursor:pointer;">
+                            Sounds Right! (${p.confirms})
+                        </button>
+                    </div>
+                `).addTo(map);
         });
 
-        map.on('zoom', () => document.getElementById('zoom-level').innerText = `Zoom: ${map.getZoom().toFixed(1)}`);
+        map.on('zoom', () => {
+            const display = document.getElementById('zoom-level');
+            if (display) display.innerText = "Zoom: " + map.getZoom().toFixed(1);
+        });
     </script>
 </body>
 </html>
