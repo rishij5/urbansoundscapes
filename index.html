@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8" />
     <title>Urban Soundscapes</title>
@@ -11,50 +11,72 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=SN+Pro:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;700&family=SN+Pro:wght@700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        h2 { 
-            font-family: "SN Pro", sans-serif;
-            font-weight: 700; 
-            font-size: 22px; 
-            margin: 0 0 10px 0;
-            letter-spacing: 1px;
+        :root {
+            --bg-dark: rgba(15, 15, 15, 0.9);
+            --border-color: #444;
+            --accent-white: #ffffff;
+            --accent-cyan: #00f2ff;
+            --text-muted: #888;
+            --font-main: "Kantumruy Pro", sans-serif;
+            --font-heading: "SN Pro", sans-serif;
         }
 
-        #zoom-level, .maplibregl-popup-content, #active-hour {
-            font-family: "Kantumruy Pro", sans-serif;
-            font-weight: 400;
-        }
-        body { margin: 0; padding: 0; }
+        body { margin: 0; padding: 0; font-family: var(--font-main); background: #000; }
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
         #ui-panel {
-            position: fixed; top: 20px; right: 20px; z-index: 1;
-            background: rgba(15,15,15, 0.9); color: white; padding: 20px;
-            border-radius: 12px; border:1px solid #444; width: 220px;
+            position: fixed; top: 20px; right: 20px; z-index: 10;
+            background: var(--bg-dark); color: white; padding: 20px;
+            border-radius: 12px; border: 1px solid var(--border-color); width: 220px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
         }
-        .maplibregl-popup-content {
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            padding: 10px;
+
+        h2 { 
+            font-family: var(--font-heading);
+            font-weight: 700; font-size: 22px; margin: 0 0 10px 0; letter-spacing: 1px;
         }
-        input[type=range] {
-            width: 100%;
-            margin-top: 10px;
-            cursor: pointer;
-            accent-color: #ffffff;
+
+        .control-group { margin-top: 15px; }
+        .label-tiny { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; letter-spacing: 0.5px; }
+        
+        #zoom-level { font-size: 14px; }
+        #active-hour { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+
+        select {
+            width: 100%; background: #222; color: white; border: 1px solid var(--border-color);
+            padding: 5px; border-radius: 4px; font-family: var(--font-main);
         }
+
+        input[type=range] { width: 100%; margin-top: 10px; cursor: pointer; accent-color: var(--accent-white); }
+
+        .gradient-bar {
+            height: 12px; border-radius: 2px;
+            background: linear-gradient(to right, #000004, #1b0c41, #4b0c6b, #781c6d, #a52c60, #cf4446, #ed6925, #fb9b06, #f7d13d, #fcffa4);
+        }
+
+        .legend-labels { display: flex; justify-content: space-between; font-size: 10px; margin-top: 5px; color: #bbb; }
+
+        .maplibregl-popup-content { border-radius: 12px; padding: 15px; color: #111; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        
+        #add-report-btn {
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #add-report-btn:hover { transform: scale(1.1); background: #ff4d4d; }
     </style>
 </head>
 <body>
+
     <div id="ui-panel">
         <h2>URBAN SOUNDSCAPES</h2>
         <div id="zoom-level">Zoom: 14.0</div>
-        <div style="margin-top: 15px;">
-            <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">DAY OF WEEK</div>
-            <select id="day-selector" style="width: 100%; background: #222; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; font-family: 'Kantumruy Pro';">
+
+        <div class="control-group">
+            <div class="label-tiny">DAY OF WEEK</div>
+            <select id="day-selector">
                 <option value="0">Monday</option>
                 <option value="1">Tuesday</option>
                 <option value="2">Wednesday</option>
@@ -64,199 +86,282 @@
                 <option value="6">Sunday</option>
             </select>
         </div>
-        <div style="margin-top: 15px;">
-            <div id="active-hour" style="font-size: 16px; color: #ffffff; margin-bottom: 5px; font-weight: bold;">12:00 PM</div>
+
+        <div class="control-group">
+            <div id="active-hour">12:00 PM</div>
             <input id="slider" type="range" min="0" max="23" step="1" value="23">
         </div>
 
-        <div style="margin-top: 15px;">
-            <div style="font-family: 'Kantumruy Pro'; font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px;">
-                SOUND LEVEL (dB)
-            </div>
-            <div style="height:12px; background: linear-gradient(to right, #000004, #1b0c41, #4b0c6b, #781c6d, #a52c60, #cf4446, #ed6925, #fb9b06, #f7d13d, #fcffa4); border-radius:2px;"></div>
-            <div style="display: flex; justify-content: space-between; font-family: 'Kantumruy Pro'; font-size: 10px; margin-top: 5px; color: #bbb;">
-                <span>40</span>
-                <span>55</span>
-                <span>70</span>
-                <span>85</span>
-                <span>100</span>
-                <span>115</span>
+        <div class="control-group">
+            <div class="label-tiny">SOUND LEVEL (dB)</div>
+            <div class="gradient-bar"></div>
+            <div class="legend-labels">
+                <span>40</span><span>55</span><span>70</span><span>85</span><span>100</span><span>115</span>
             </div>
         </div>
     </div>
+
+    <button id="add-report-btn" title="Report Noise Vibe" style="position: fixed; bottom: 30px; right: 30px; z-index: 20; width: 60px; height: 60px; border-radius: 50%; border: none; background: #e74c3c; color: white; font-size: 30px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;">+</button>
+
+    <div id="report-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div style="background: #1a1a1a; color: white; padding: 25px; border-radius: 12px; width: 320px; border: 1px solid #444; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+            <h3 style="margin-top: 0; font-family: 'SN Pro';">Report Local Vibe</h3>
+            
+            <div class="control-group">
+                <div id="vibe-label" class="label-tiny" style="color: #ed6925; font-weight: bold;">Moderate (55-70 dB)</div>
+                <div id="vibe-desc" style="font-size: 12px; color: #bbb; margin-bottom: 10px;">Coffee shop chatter, light background music.</div>
+                <input id="vibe-slider" type="range" min="1" max="4" step="1" value="2">
+            </div>
+
+            <div class="control-group" style="margin-top: 20px;">
+                <div class="label-tiny">OPTIONAL: SCREENSHOT PROOF</div>
+                <input type="file" id="proof-upload" accept="image/*" style="font-size: 11px; color: #888;">
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 25px;">
+                <button id="cancel-report" style="flex: 1; padding: 10px; background: #333; border: none; color: white; border-radius: 6px; cursor: pointer;">Cancel</button>
+                <button id="submit-report" style="flex: 2; padding: 10px; background: #e74c3c; border: none; color: white; border-radius: 6px; font-weight: bold; cursor: pointer;">Submit Report</button>
+            </div>
+        </div>
+    </div>
+
     <div id="map"></div>
 
     <script>
-        const bounds = [
-            [-97.756408, 30.254275],
-            [-97.729097, 30.301918]
-        ];
+        // Supabase Init
+        const SUPABASE_URL = 'https://mjwowewyqsrtyovhmmnf.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qd293ZXd5cXNydHlvdmhtbW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjEzMjQsImV4cCI6MjA4NzE5NzMyNH0.UgPsfu0BrKGDt5LdJAgsqKHxElocX0LHIoxmj44cE6o';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const MAP_CENTER = [-97.7410, 30.2675];
+        const MAP_BOUNDS = [[-97.756408, 30.254275], [-97.729097, 30.301918]];
+        const vibeData = {
+            1: { label: "Quiet (40-55 dB)", desc: "Empty library corner, whispers only.", db: 45 },
+            2: { label: "Moderate (55-70 dB)", desc: "Coffee shop chatter, light music.", db: 65 },
+            3: { label: "Loud (70-85 dB)", desc: "Busy dining hall, shouting to be heard.", db: 80 },
+            4: { label: "Extreme (85+ dB)", desc: "Concert, construction, or active party.", db: 100 }
+        };
 
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-            center: [-97.7410, 30.2675],
+            center: MAP_CENTER,
             zoom: 14,
-            maxBounds: bounds,
+            maxBounds: MAP_BOUNDS,
             minZoom: 12, 
             maxZoom: 20
         });
 
-        // Helper function to turn CSV rows into GeoJSON
+        const formatTime = (hour) => {
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour % 12 || 12;
+            return `${displayHour}:00 ${ampm}`;
+        };
+
         function transformToGeoJSON(data) {
             return {
-                "type": "FeatureCollection",
-                "features": data.map(p => ({
-                    "type": "Feature",
-                    "properties": { 
-                        "db": parseFloat(p[2]), 
-                        "hour": parseInt(p[3]), 
-                        "day": parseInt(p[4])
-                    },
-                    "geometry": { 
-                        "type": "Point", 
-                        "coordinates": [parseFloat(p[1]), parseFloat(p[0])] 
-                    }
+                type: "FeatureCollection",
+                features: data.map(p => ({
+                    type: "Feature",
+                    properties: { db: parseFloat(p[2]), hour: parseInt(p[3]), day: parseInt(p[4]) },
+                    geometry: { type: "Point", coordinates: [parseFloat(p[1]), parseFloat(p[0])] }
                 }))
             };
         }
 
         map.on('load', async () => {
-            // Load the CSV file from the same directory
-            const response = await fetch('data.csv');
-            const csvString = await response.text();
-            
-            // Parse CSV (assuming no header row)
-            const results = Papa.parse(csvString, {
-                skipEmptyLines: true,
-                header: false 
-            });
+            try {
+                const response = await fetch('data.csv');
+                const csvString = await response.text();
+                const results = Papa.parse(csvString, { skipEmptyLines: true, header: false });
+                const geojson = transformToGeoJSON(results.data);
 
-            const geojson = transformToGeoJSON(results.data);
+                map.addSource('noise-source', { type: 'geojson', data: geojson });
+                map.addSource('user-reports', { type: 'geojson', data: { type: "FeatureCollection", features: [] } });
 
-            map.addSource('noise-source', {
-                type: 'geojson',
-                data: geojson
-            });
+                const firstSymbolId = map.getStyle().layers.find(l => l.type === 'symbol')?.id;
 
-            const layers = map.getStyle().layers;
-            let firstSymbolId;
-            for (let i=0; i<layers.length; i++){
-                if (layers[i].type === 'symbol'){
-                    firstSymbolId = layers[i].id;
-                    break;
-                }
+                map.addLayer({
+                    id: 'noise-heat',
+                    type: 'heatmap',
+                    source: 'noise-source',
+                    paint: {
+                        'heatmap-opacity': 0.7,
+                        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 2.5],
+                        'heatmap-weight': ['interpolate', ['linear'], ['get', 'db'], 40, 0, 115, 1],
+                        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 15, 30, 18, 150],
+                        'heatmap-color': [
+                            'interpolate', ['linear'], ['heatmap-density'],
+                            0, 'rgba(0,0,4,0)', 0.1, '#1b0c41', 0.3, '#4b0c6b', 
+                            0.5, '#a52c60', 0.7, '#ed6925', 0.9, '#fb9b06', 1, '#fcffa4'
+                        ]
+                    }
+                }, firstSymbolId);
+
+                map.addLayer({
+                    id: 'sensor-dots',
+                    type: 'circle',
+                    source: 'noise-source',
+                    paint: { 'circle-radius': 3, 'circle-color': '#fff', 'circle-stroke-width': 2, 'circle-stroke-color': '#000' }
+                });
+
+                map.addLayer({
+                    id: 'sensor-hitbox',
+                    type: 'circle',
+                    source: 'noise-source',
+                    paint: { 'circle-radius': 12, 'circle-opacity': 0 }
+                });
+
+                map.addLayer({
+                    id: 'user-reports-layer',
+                    type: 'circle',
+                    source: 'user-reports',
+                    paint: {
+                        'circle-radius': ['interpolate', ['linear'], ['get', 'confirms'], 0, 8, 10, 20],
+                        'circle-color': '#00f2ff',
+                        'circle-opacity': ['interpolate', ['linear'], ['get', 'confirms'], 0, 0.4, 5, 0.8],
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': '#fff'
+                    }
+                });
+
+                setupControls();
+                setupReporting();
+                fetchGlobalReports();
+                setInterval(fetchGlobalReports, 60000);
+            } catch (err) {
+                console.error("Initialization Error:", err);
             }
+        });
 
-            map.addLayer({
-                id: 'noise-heat',
-                type: 'heatmap',
-                source: 'noise-source',
-                paint: {
-                    'heatmap-opacity': 0.7,
-                    'heatmap-intensity': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        0,1,15,2.5
-                    ],
-                    'heatmap-weight': ['interpolate', ['linear'], ['get', 'db'], 40, 0, 115, 1],
-                    'heatmap-radius': [
-                        'interpolate', ['linear'], ['zoom'],
-                        10, 5,
-                        15, 30,
-                        18, 150
-                    ],
-                    'heatmap-color': [
-                        'interpolate',
-                        ['linear'],
-                        ['heatmap-density'],
-                        0, 'rgba(0,0,4,0)',
-                        0.1, '#1b0c41',
-                        0.3, '#4b0c6b',
-                        0.5, '#a52c60',
-                        0.7, '#ed6925',
-                        0.9, '#fb9b06',
-                        1, '#fcffa4'
-                    ]
+        function setupReporting() {
+            const modal = document.getElementById('report-modal');
+            const vibeSlider = document.getElementById('vibe-slider');
+
+            document.getElementById('add-report-btn').onclick = () => {
+                const lastReport = localStorage.getItem('lastReportTime');
+                const now = Date.now();
+                if (lastReport && (now - lastReport < 30 * 60 * 1000)) {
+                    const minsLeft = Math.ceil((30 * 60 * 1000 - (now - lastReport)) / 60000);
+                    alert(`Cooldown: ${minsLeft} mins remaining.`);
+                    return;
                 }
-            }, firstSymbolId);
-
-            map.addLayer({
-                id: 'sensor-dots',
-                type: 'circle',
-                source: 'noise-source',
-                paint: {
-                    'circle-radius': 3,
-                    'circle-color': '#ffffff',
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#000'
-                }
-            });
-
-            map.addLayer({
-                id: 'sensor-hitbox',
-                type: 'circle',
-                source: 'noise-source',
-                paint: {
-                    'circle-radius': 9,
-                    'circle-opacity': 0,
-                    'circle-pitch-alignment': 'map'
-                }
-            });
-
-            const updateFilter = () => {
-                const hour = parseInt(document.getElementById('slider').value);
-                const day = parseInt(document.getElementById('day-selector').value);
-
-                const filter = ['all', 
-                    ['==', ['get', 'hour'], hour],
-                    ['==', ['get', 'day'], day]
-                ];
-
-                map.setFilter('noise-heat', filter);
-                map.setFilter('sensor-dots', filter);
-                map.setFilter('sensor-hitbox', filter);
-                
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const displayHour = hour % 12 || 12;
-                document.getElementById('active-hour').innerText = `${displayHour}:00 ${ampm}`;
+                modal.style.display = 'flex';
             };
 
+            document.getElementById('cancel-report').onclick = () => modal.style.display = 'none';
+
+            vibeSlider.oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById('vibe-label').innerText = vibeData[val].label;
+                document.getElementById('vibe-desc').innerText = vibeData[val].desc;
+            };
+
+            document.getElementById('submit-report').onclick = async () => {
+                const userLoc = map.getCenter();
+                const selectedVibe = vibeData[vibeSlider.value];
+                
+                const { error } = await supabase
+                    .from('self_reports')
+                    .insert([{ 
+                        lat: userLoc.lat, 
+                        lng: userLoc.lng, 
+                        db_level: selectedVibe.db, 
+                        vibe_label: selectedVibe.label 
+                    }]);
+
+                if (error) {
+                    console.error("Upload failed:", error);
+                } else {
+                    localStorage.setItem('lastReportTime', Date.now());
+                    modal.style.display = 'none';
+                    fetchGlobalReports(); 
+                    alert("Vibe live on the global map!");
+                }
+            };
+        }
+
+        async function fetchGlobalReports() {
+            const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+            const { data, error } = await supabase
+                .from('self_reports')
+                .select('*')
+                .gt('created_at', twoHoursAgo);
+
+            if (data) {
+                const geojson = {
+                    type: "FeatureCollection",
+                    features: data.map(r => ({
+                        type: "Feature",
+                        properties: { db: r.db_level, vibe: r.vibe_label, id: r.id, confirms: r.confirmations || 0 },
+                        geometry: { type: "Point", coordinates: [r.lng, r.lat] }
+                    }))
+                };
+                map.getSource('user-reports').setData(geojson);
+            }
+        }
+
+        function setupControls() {
+            const slider = document.getElementById('slider');
+            const daySelector = document.getElementById('day-selector');
+            const hourDisplay = document.getElementById('active-hour');
+
+            const updateFilter = () => {
+                const hour = parseInt(slider.value);
+                const day = parseInt(daySelector.value);
+                const filter = ['all', ['==', ['get', 'hour'], hour], ['==', ['get', 'day'], day]];
+                ['noise-heat', 'sensor-dots', 'sensor-hitbox'].forEach(id => map.setFilter(id, filter));
+                hourDisplay.innerText = formatTime(hour);
+            };
+
+            slider.addEventListener('input', updateFilter);
+            daySelector.addEventListener('change', updateFilter);
             updateFilter();
+        }
 
-            document.getElementById('slider').addEventListener('input', updateFilter);
-            document.getElementById('day-selector').addEventListener('change', updateFilter);
-            
-            map.on('click', 'sensor-hitbox', (e) => {
-                const coordinates = e.features[0].geometry.coordinates.slice();
-                const dbValue = e.features[0].properties.db; 
-                const hourValue = e.features[0].properties.hour;
-
-                const ampm = hourValue >= 12 ? 'PM' : 'AM';
-                const displayHour = hourValue % 12 || 12;
-
-                new maplibregl.Popup()
-                    .setLngLat(coordinates)
-                    .setHTML(`
-                        <div style="color: #111; font-family: sans-serif;">
-                            <b style="font-size: 10px; color: #666; text-transform: uppercase;">Recorded at ${displayHour}:00 ${ampm}</b><br>
-                            <span style="font-size: 18px; font-weight: bold; color: #e74c3c;">${dbValue} dB</span>
-                        </div>
-                    `)
-                    .addTo(map);
-            });
-
-            map.on('mouseenter', 'sensor-hitbox', () => { map.getCanvas().style.cursor = 'pointer'; });
-            map.on('mouseleave', 'sensor-hitbox', () => { map.getCanvas().style.cursor = ''; });
+        map.on('click', 'sensor-hitbox', (e) => {
+            const { db, hour } = e.features[0].properties;
+            new maplibregl.Popup()
+                .setLngLat(e.features[0].geometry.coordinates)
+                .setHTML(`<b>Recorded at ${formatTime(hour)}</b><br><span style="font-size: 18px; font-weight: bold; color: #e74c3c;">${db} dB</span>`)
+                .addTo(map);
         });
 
-        map.on('zoom', () => {
-            const z = map.getZoom().toFixed(1);
-            const display = document.getElementById('zoom-level');
-            if (display) display.innerText = "Zoom: " + z;
+        map.on('click', 'user-reports-layer', (e) => {
+            const props = e.features[0].properties;
+            new maplibregl.Popup()
+                .setLngLat(e.features[0].geometry.coordinates)
+                .setHTML(`
+                    <div style="text-align:center; font-family: sans-serif;">
+                        <b style="color:#00f2ff; font-size: 10px; text-transform: uppercase;">Student Report</b><br>
+                        <span style="font-size:16px; font-weight: bold;">${props.vibe}</span><br>
+                        <button onclick="confirmReport(${props.id})" style="margin-top:10px; background:#00f2ff; color:#000; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">
+                            Sounds Right! (${props.confirms})
+                        </button>
+                    </div>
+                `).addTo(map);
         });
 
+        window.confirmReport = async (id) => {
+            if (localStorage.getItem(`confirmed_${id}`)) {
+                alert("You've already verified this vibe!");
+                return;
+            }
+            const { error } = await supabase.rpc('increment_confirmations', { row_id: id });
+            if (!error) {
+                localStorage.setItem(`confirmed_${id}`, true);
+                fetchGlobalReports();
+                alert("Vibe verified!");
+            } else {
+                console.error("Confirmation error:", error);
+            }
+        };
+
+        map.on('mouseenter', 'sensor-hitbox', () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', 'sensor-hitbox', () => map.getCanvas().style.cursor = '');
+        map.on('mouseenter', 'user-reports-layer', () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', 'user-reports-layer', () => map.getCanvas().style.cursor = '');
+        map.on('zoom', () => { document.getElementById('zoom-level').innerText = `Zoom: ${map.getZoom().toFixed(1)}`; });
     </script>
 </body>
 </html>
