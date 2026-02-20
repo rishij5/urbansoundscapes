@@ -174,38 +174,40 @@ if (!visitorId) {
             
             // 1. Student Report Glow (Pulsing)
             map.addLayer({
-                id: 'user-reports-glow',
-                type: 'circle',
-                source: 'user-reports',
-                paint: {
-                    'circle-radius': 20,
-                    'circle-color': '#00f2ff',
-                    'circle-blur': 1.5,
-                    'circle-opacity': 0.3
-                }
-            });
+    id: 'user-reports-glow',
+    type: 'circle',
+    source: 'user-reports',
+    paint: {
+        'circle-radius': 20,
+        'circle-color': '#fb9b06', // Changed from cyan to heatmap orange
+        'circle-blur': 1.5,
+        'circle-opacity': 0.3
+    }
+});
 
             // 2. Student Report Core
             map.addLayer({
-                id: 'user-reports-layer',
-                type: 'circle',
-                source: 'user-reports',
-                paint: {
-                    'circle-radius': 8,
-                    'circle-color': [
-                        'match', ['get', 'vibe'],
-                        'Quiet (40-55 dB)', '#3498db',
-                        'Moderate (55-70 dB)', '#2ecc71',
-                        'Loud (70-85 dB)', '#f1c40f',
-                        'Extreme (85+ dB)', '#e74c3c',
-                        '#00f2ff'
-                    ],
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#fff',
-                    'circle-opacity': ['interpolate', ['linear'], ['get', 'confirms'], 0, 0.5, 3, 1]
-                }
-            });
-
+    id: 'user-reports-layer',
+    type: 'circle',
+    source: 'user-reports',
+    paint: {
+        'circle-radius': 8,
+        'circle-color': [
+            'interpolate',
+            ['linear'],
+            ['get', 'db'],
+            40, '#000004',    // Quiet (Dark Purple/Black)
+            55, '#4b0c6b',    // Moderate
+            70, '#a52c60',    // Moderate-Loud
+            85, '#ed6925',    // Loud
+            100, '#fb9b06',   // Very Loud
+            115, '#fcffa4'    // Extreme (Pale Yellow)
+        ],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#fff',
+        'circle-opacity': ['interpolate', ['linear'], ['get', 'confirms'], 0, 0.5, 3, 1]
+    }
+});
             try {
                 // 3. Static Heatmap Logic
                 const response = await fetch('data.csv');
@@ -409,7 +411,7 @@ if (!visitorId) {
         .setLngLat(e.features[0].geometry.coordinates)
         .setHTML(`
             <div style="text-align:center; color:white;">
-                <div style="font-size:10px; color:#888; text-transform:uppercase;">Student Report</div>
+                <div style="font-size:10px; color:#888; text-transform:uppercase;">Self Report</div>
                 <b style="color:#00f2ff; font-size:16px;">${p.vibe}</b><br>
                 <button onclick="confirmReport(${p.id})" style="margin-top:8px; background:#00f2ff; color:black; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Sounds Right! (${p.confirms})</button>
                 ${deleteBtn}
