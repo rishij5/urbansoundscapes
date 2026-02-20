@@ -281,20 +281,30 @@ if (!visitorId) {
             requestAnimationFrame(animatePulse);
         }
 
-        async function fetchGlobalReports() {
-            const { data, error } = await supabaseClient.from('self_reports').select('*').gt('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
-            if (data) {
-                const geojson = {
-                    type: "FeatureCollection",
-                    features: data.map(r => ({
-                        type: "Feature",
-                        properties: { db: r.db_level, vibe: r.vibe_label, id: r.id, confirms: r.confirmations || 0 },
-                        geometry: { type: "Point", coordinates: [r.lng, r.lat] }
-                    }))
-                };
-                map.getSource('user-reports').setData(geojson);
-            }
-        }
+       async function fetchGlobalReports() {
+    const { data, error } = await supabaseClient
+        .from('self_reports')
+        .select('*')
+        .gt('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
+
+    if (data) {
+        const geojson = {
+            type: "FeatureCollection",
+            features: data.map(r => ({
+                type: "Feature",
+                properties: { 
+                    db: r.db_level, 
+                    vibe: r.vibe_label, 
+                    id: r.id, 
+                    confirms: r.confirmations || 0,
+                    user_id: r.user_id // IMPORTANT: Add this line
+                },
+                geometry: { type: "Point", coordinates: [r.lng, r.lat] }
+            }))
+        };
+        map.getSource('user-reports').setData(geojson);
+    }
+}
 
         function setupReporting() {
             const modal = document.getElementById('report-modal');
@@ -337,23 +347,28 @@ if (!visitorId) {
         }
 
        window.confirmReport = async (id) => {
-    // Generate or get a persistent ID for this browser
     let visitorId = localStorage.getItem('vibe_visitor_id');
-    if (!visitorId) {
-        visitorId = Math.random().toString(36).substring(2, 15);
-        localStorage.setItem('vibe_visitor_id', visitorId);
+    
+    // Check local storage first to prevent spam without hitting the DB
+    let confirmedReports = JSON.parse(localStorage.getItem('confirmed_reports') || "[]");
+    
+    if (confirmedReports.includes(id)) {
+        alert("You've already verified this!");
+        return;
     }
 
-    // Call the updated function with the visitorId
     const { error } = await supabaseClient.rpc('increment_confirmations', { 
         row_id: id, 
         visitor_id: visitorId 
     });
     
     if (error) {
-        // This will now show the 'Already verified' message from the database
-        alert(error.message.includes('already verified') ? "You've already verified this!" : "Error processing verification.");
+        alert(error.message.includes('already verified') ? "You've already verified this!" : "Error processing.");
     } else {
+        // Success: Save the ID locally so they can't click it again
+        confirmedReports.push(id);
+        localStorage.setItem('confirmed_reports', JSON.stringify(confirmedReports));
+        
         fetchGlobalReports();
         alert("Thanks for verifying!");
     }
