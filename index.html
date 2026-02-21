@@ -96,7 +96,7 @@
         </div>
         <div class="control-group">
             <div id="active-hour" style="font-weight:bold;">12:00 PM</div>
-            <input id="slider" type="range" min="0" max="23" step="1" value="12">
+            <input id="slider" type="range" min="0" max="23" step="1" value="23">
         </div>
         <div class="control-group">
             <div class="label-tiny">SOUND LEVEL (dB)</div>
@@ -128,7 +128,6 @@
             visitorId = Math.random().toString(36).substring(2, 15);
             localStorage.setItem('vibe_visitor_id', visitorId);
         }
-
         const SUPABASE_URL = 'https://mjwowewyqsrtyovhmmnf.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qd293ZXd5cXNydHlvdmhtbW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjEzMjQsImV4cCI6MjA4NzE5NzMyNH0.UgPsfu0BrKGDt5LdJAgsqKHxElocX0LHIoxmj44cE6o';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -177,7 +176,9 @@
                 paint: {
                     'circle-radius': 8,
                     'circle-color': [
-                        'interpolate', ['linear'], ['get', 'db'],
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'db'],
                         40, '#000004', 55, '#4b0c6b', 70, '#a52c60', 85, '#ed6925', 100, '#fb9b06', 115, '#fcffa4'
                     ],
                     'circle-stroke-width': 2,
@@ -194,7 +195,11 @@
                     type: "FeatureCollection",
                     features: results.data.map(p => ({
                         type: "Feature",
-                        properties: { db: parseFloat(p[2]), hour: parseInt(p[3]), day: parseInt(p[4]) },
+                        properties: { 
+                            db: parseFloat(p[2]), 
+                            hour: Math.round(parseFloat(p[3])), // Handle potential decimals in time columns
+                            day: Math.round(parseFloat(p[4])) 
+                        },
                         geometry: { type: "Point", coordinates: [parseFloat(p[1]), parseFloat(p[0])] }
                     }))
                 };
@@ -234,9 +239,7 @@
                     paint: { 'circle-radius': 10, 'circle-opacity': 0 }
                 });
 
-                // MOVED: Run controls setup only AFTER layers are successfully added
                 setupControls();
-
             } catch (err) { console.error("CSV Load Error:", err); }
 
             setupReporting();
@@ -250,6 +253,7 @@
             step += 0.05;
             const opacity = (Math.sin(step) * 0.1) + 0.3;
             const radius = (Math.sin(step) * 5) + 20; 
+
             if (map.getLayer('user-reports-glow')) {
                 map.setPaintProperty('user-reports-glow', 'circle-opacity', opacity);
                 map.setPaintProperty('user-reports-glow', 'circle-radius', radius);
@@ -285,21 +289,29 @@
         function setupReporting() {
             const modal = document.getElementById('report-modal');
             const slider = document.getElementById('vibe-slider');
-            document.getElementById('add-report-btn').onclick = () => modal.style.display = 'flex';
-            document.getElementById('cancel-report').onclick = () => { modal.style.display = 'none'; map.resize(); };
             
+            document.getElementById('add-report-btn').onclick = () => {
+                modal.style.display = 'flex';
+            };
+
+            document.getElementById('cancel-report').onclick = () => {
+                modal.style.display = 'none';
+                map.resize(); 
+            };
             slider.oninput = (e) => {
                 const val = e.target.value;
                 document.getElementById('vibe-label').innerText = vibeData[val].label;
                 document.getElementById('vibe-desc').innerText = vibeData[val].desc;
             };
-
             document.getElementById('submit-report').onclick = async () => {
                 navigator.geolocation.getCurrentPosition(async (pos) => {
                     const vibe = vibeData[slider.value];
                     const { error } = await supabaseClient.from('self_reports').insert([{ 
-                        lat: pos.coords.latitude, lng: pos.coords.longitude, 
-                        db_level: vibe.db, vibe_label: vibe.label, user_id: visitorId 
+                        lat: pos.coords.latitude, 
+                        lng: pos.coords.longitude, 
+                        db_level: vibe.db, 
+                        vibe_label: vibe.label,
+                        user_id: visitorId 
                     }]);
                     if (!error) { modal.style.display = 'none'; fetchGlobalReports(); alert("Vibe reported!"); }
                 }, (err) => alert("Please enable GPS."));
@@ -309,13 +321,11 @@
         function setupControls() {
             const slider = document.getElementById('slider');
             const day = document.getElementById('day-selector');
-            
             const update = () => {
                 const h = parseInt(slider.value);
                 const d = parseInt(day.value);
                 const filter = ['all', ['==', ['get', 'hour'], h], ['==', ['get', 'day'], d]];
                 
-                // Safety check: ensure layers exist before applying filter
                 ['noise-heat', 'sensor-dots', 'sensor-hitbox'].forEach(id => {
                     if (map.getLayer(id)) {
                         map.setFilter(id, filter);
@@ -323,17 +333,23 @@
                 });
                 document.getElementById('active-hour').innerText = formatTime(h);
             };
-
             slider.oninput = update;
             day.onchange = update;
-            update(); // Run initial filter
+            update();
         }
 
         window.confirmReport = async (id) => {
             let confirmedReports = JSON.parse(localStorage.getItem('confirmed_reports') || "[]");
-            if (confirmedReports.includes(id)) { alert("You've already verified this!"); return; }
+            if (confirmedReports.includes(id)) {
+                alert("You've already verified this!");
+                return;
+            }
 
-            const { error } = await supabaseClient.rpc('increment_confirmations', { row_id: id, visitor_id: visitorId });
+            const { error } = await supabaseClient.rpc('increment_confirmations', { 
+                row_id: id, 
+                visitor_id: visitorId 
+            });
+            
             if (error) {
                 alert(error.message.includes('already verified') ? "You've already verified this!" : "Error processing.");
             } else {
@@ -348,26 +364,32 @@
             const { db, hour } = e.features[0].properties;
             new maplibregl.Popup()
                 .setLngLat(e.features[0].geometry.coordinates)
-                .setHTML(`<div style="font-family: 'SN Pro', sans-serif;">
-                    <div style="font-size: 10px; color: #888; text-transform: uppercase;">Historical Sensor Data</div>
-                    <div style="font-size: 14px; font-weight: bold;">Recorded at ${formatTime(hour)}</div>
-                    <div style="font-size: 24px; font-weight: 700; color: #ed6925;">${db} <span style="font-size: 12px;">dB</span></div>
-                </div>`).addTo(map);
+                .setHTML(`
+                    <div style="font-family: 'SN Pro', sans-serif;">
+                        <div style="font-size: 10px; color: #888; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">Historical Sensor Data</div>
+                        <div style="font-size: 14px; font-weight: bold; margin-bottom: 2px;">Recorded at ${formatTime(hour)}</div>
+                        <div style="font-size: 24px; font-weight: 700; color: #ed6925;">${db} <span style="font-size: 12px;">dB</span></div>
+                    </div>
+                `)
+                .addTo(map);
         });
 
         map.on('click', 'user-reports-layer', (e) => {
             const p = e.features[0].properties;
             const isOwner = p.user_id === visitorId;
-            const deleteBtn = isOwner ? `<button onclick="deleteReport(${p.id})" style="margin-top:8px; background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; width:100%; font-size:11px;">Delete My Report</button>` : '';
+            const deleteBtn = isOwner ? 
+                `<button onclick="deleteReport(${p.id})" style="margin-top:8px; background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; width:100%; font-size:11px;">Delete My Report</button>` : '';
 
             new maplibregl.Popup()
                 .setLngLat(e.features[0].geometry.coordinates)
-                .setHTML(`<div style="text-align:center; color:white;">
-                    <div style="font-size:10px; color:#888; text-transform:uppercase;">Self Report</div>
-                    <b style="color:#00f2ff; font-size:16px;">${p.vibe}</b><br>
-                    <button onclick="confirmReport(${p.id})" style="margin-top:8px; background:#00f2ff; color:black; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Sounds Right! (${p.confirms})</button>
-                    ${deleteBtn}
-                </div>`).addTo(map);
+                .setHTML(`
+                    <div style="text-align:center; color:white;">
+                        <div style="font-size:10px; color:#888; text-transform:uppercase;">Self Report</div>
+                        <b style="color:#00f2ff; font-size:16px;">${p.vibe}</b><br>
+                        <button onclick="confirmReport(${p.id})" style="margin-top:8px; background:#00f2ff; color:black; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Sounds Right! (${p.confirms})</button>
+                        ${deleteBtn}
+                    </div>
+                `).addTo(map);
         });
 
         map.on('mouseenter', 'sensor-hitbox', () => map.getCanvas().style.cursor = 'pointer');
@@ -377,18 +399,27 @@
         
         const panel = document.getElementById('ui-panel');
         const toggleBtn = document.getElementById('toggle-panel-btn');
+
         toggleBtn.onclick = () => {
             panel.classList.toggle('minimized');
             toggleBtn.innerText = panel.classList.contains('minimized') ? "⚙" : "−";
         };
 
         window.deleteReport = async (id) => {
-            if (!confirm("Remove this report?")) return;
-            const { error } = await supabaseClient.from('self_reports').delete().eq('id', id);
-            if (!error) {
+            if (!confirm("Remove this report from the map?")) return;
+            const { error } = await supabaseClient
+                .from('self_reports')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error("Delete error:", error);
+                alert("Could not delete: " + error.message);
+            } else {
                 await fetchGlobalReports();
                 const popups = document.getElementsByClassName('maplibregl-popup');
                 while(popups[0]) popups[0].remove();
+                alert("Report removed.");
             }
         };
     </script>
