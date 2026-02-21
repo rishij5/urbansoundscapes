@@ -31,36 +31,31 @@
             border-radius: 12px; border: 1px solid var(--border-color); width: 220px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.8);
             backdrop-filter: blur(8px);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Animation for sliding the panel out */
-#ui-panel {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+        #ui-panel.minimized {
+            transform: translateX(calc(100% + 20px));
+        }
 
-/* Class to apply when minimized */
-#ui-panel.minimized {
-    transform: translateX(calc(100% + 20px));
-}
+        #toggle-panel-btn {
+            position: absolute;
+            left: -40px; 
+            top: 0;
+            width: 32px;
+            height: 32px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            backdrop-filter: blur(8px);
+        }
 
-/* The toggle button styling */
-#toggle-panel-btn {
-    position: absolute;
-    left: -40px; /* Sits just outside the panel */
-    top: 0;
-    width: 32px;
-    height: 32px;
-    background: var(--bg-dark);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    backdrop-filter: blur(8px);
-}
         h2 { font-family: var(--font-heading); font-weight: 700; font-size: 22px; margin: 0 0 10px 0; letter-spacing: 1px; }
         .control-group { margin-top: 15px; }
         .label-tiny { font-size: 11px; color: #888; margin-bottom: 4px; letter-spacing: 0.5px; }
@@ -68,25 +63,18 @@
         .gradient-bar { height: 12px; border-radius: 2px; background: linear-gradient(to right, #000004, #1b0c41, #4b0c6b, #781c6d, #a52c60, #cf4446, #ed6925, #fb9b06, #f7d13d, #fcffa4); }
         .legend-labels { display: flex; justify-content: space-between; font-size: 10px; margin-top: 5px; color: #bbb; }
 
-        /* Target the popup container */
-.maplibregl-popup-content {
-    background: #111 !important;
-    color: white !important; /* Forces all text in popups to be white by default */
-    border: 1px solid #444 !important;
-    border-radius: 12px !important;
-    padding: 15px !important;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.6) !important;
-}
+        .maplibregl-popup-content {
+            background: #111 !important;
+            color: white !important; 
+            border: 1px solid #444 !important;
+            border-radius: 12px !important;
+            padding: 15px !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6) !important;
+        }
 
-/* Style the popup close button */
-.maplibregl-popup-close-button {
-    color: white;
-    padding: 5px;
-}
-
-/* Style the "tip" (the little triangle at the bottom) */
-.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--border-color); }
-.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--border-color); }
+        .maplibregl-popup-close-button { color: white; padding: 5px; }
+        .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--border-color); }
+        .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--border-color); }
     </style>
 </head>
 <body>
@@ -108,7 +96,7 @@
         </div>
         <div class="control-group">
             <div id="active-hour" style="font-weight:bold;">12:00 PM</div>
-            <input id="slider" type="range" min="0" max="23" step="1" value="23">
+            <input id="slider" type="range" min="0" max="23" step="1" value="12">
         </div>
         <div class="control-group">
             <div class="label-tiny">SOUND LEVEL (dB)</div>
@@ -136,10 +124,11 @@
 
     <script>
         let visitorId = localStorage.getItem('vibe_visitor_id');
-if (!visitorId) {
-    visitorId = Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('vibe_visitor_id', visitorId);
-}
+        if (!visitorId) {
+            visitorId = Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('vibe_visitor_id', visitorId);
+        }
+
         const SUPABASE_URL = 'https://mjwowewyqsrtyovhmmnf.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qd293ZXd5cXNydHlvdmhtbW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjEzMjQsImV4cCI6MjA4NzE5NzMyNH0.UgPsfu0BrKGDt5LdJAgsqKHxElocX0LHIoxmj44cE6o';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -167,49 +156,37 @@ if (!visitorId) {
         };
 
         map.on('load', async () => {
-            // Sources
             map.addSource('user-reports', { type: 'geojson', data: { type: "FeatureCollection", features: [] } });
 
-            // Layer Stack Start
-            
-            // 1. Student Report Glow (Pulsing)
             map.addLayer({
-    id: 'user-reports-glow',
-    type: 'circle',
-    source: 'user-reports',
-    paint: {
-        'circle-radius': 20,
-        'circle-color': '#fb9b06', // Changed from cyan to heatmap orange
-        'circle-blur': 1.5,
-        'circle-opacity': 0.3
-    }
-});
+                id: 'user-reports-glow',
+                type: 'circle',
+                source: 'user-reports',
+                paint: {
+                    'circle-radius': 20,
+                    'circle-color': '#fb9b06',
+                    'circle-blur': 1.5,
+                    'circle-opacity': 0.3
+                }
+            });
 
-            // 2. Student Report Core
             map.addLayer({
-    id: 'user-reports-layer',
-    type: 'circle',
-    source: 'user-reports',
-    paint: {
-        'circle-radius': 8,
-        'circle-color': [
-            'interpolate',
-            ['linear'],
-            ['get', 'db'],
-            40, '#000004',    // Quiet (Dark Purple/Black)
-            55, '#4b0c6b',    // Moderate
-            70, '#a52c60',    // Moderate-Loud
-            85, '#ed6925',    // Loud
-            100, '#fb9b06',   // Very Loud
-            115, '#fcffa4'    // Extreme (Pale Yellow)
-        ],
-        'circle-stroke-width': 2,
-        'circle-stroke-color': '#fff',
-        'circle-opacity': ['interpolate', ['linear'], ['get', 'confirms'], 0, 0.5, 3, 1]
-    }
-});
+                id: 'user-reports-layer',
+                type: 'circle',
+                source: 'user-reports',
+                paint: {
+                    'circle-radius': 8,
+                    'circle-color': [
+                        'interpolate', ['linear'], ['get', 'db'],
+                        40, '#000004', 55, '#4b0c6b', 70, '#a52c60', 85, '#ed6925', 100, '#fb9b06', 115, '#fcffa4'
+                    ],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#fff',
+                    'circle-opacity': ['interpolate', ['linear'], ['get', 'confirms'], 0, 0.5, 3, 1]
+                }
+            });
+
             try {
-                // 3. Static Heatmap Logic
                 const response = await fetch('data.csv');
                 const csvString = await response.text();
                 const results = Papa.parse(csvString, { skipEmptyLines: true, header: false });
@@ -238,7 +215,6 @@ if (!visitorId) {
                     }
                 }, firstSymbolId);
 
-                // 4. RESTORED: Original Sensor Dots (Pinned to Top)
                 map.addLayer({
                     id: 'sensor-dots',
                     type: 'circle',
@@ -251,7 +227,6 @@ if (!visitorId) {
                     }
                 });
 
-                // Hitbox for sensor popups
                 map.addLayer({
                     id: 'sensor-hitbox',
                     type: 'circle',
@@ -259,7 +234,9 @@ if (!visitorId) {
                     paint: { 'circle-radius': 10, 'circle-opacity': 0 }
                 });
 
+                // MOVED: Run controls setup only AFTER layers are successfully added
                 setupControls();
+
             } catch (err) { console.error("CSV Load Error:", err); }
 
             setupReporting();
@@ -268,13 +245,11 @@ if (!visitorId) {
             animatePulse();
         });
 
-        // Pulse logic for radius and opacity
         let step = 0;
         function animatePulse() {
             step += 0.05;
             const opacity = (Math.sin(step) * 0.1) + 0.3;
             const radius = (Math.sin(step) * 5) + 20; 
-
             if (map.getLayer('user-reports-glow')) {
                 map.setPaintProperty('user-reports-glow', 'circle-opacity', opacity);
                 map.setPaintProperty('user-reports-glow', 'circle-radius', radius);
@@ -282,59 +257,50 @@ if (!visitorId) {
             requestAnimationFrame(animatePulse);
         }
 
-       async function fetchGlobalReports() {
-    const { data, error } = await supabaseClient
-        .from('self_reports')
-        .select('*')
-        .gt('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
+        async function fetchGlobalReports() {
+            const { data, error } = await supabaseClient
+                .from('self_reports')
+                .select('*')
+                .gt('created_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
 
-    if (data) {
-        const geojson = {
-            type: "FeatureCollection",
-            features: data.map(r => ({
-                type: "Feature",
-                properties: { 
-                    db: r.db_level, 
-                    vibe: r.vibe_label, 
-                    id: r.id, 
-                    confirms: r.confirmations || 0,
-                    user_id: r.user_id // IMPORTANT: Add this line
-                },
-                geometry: { type: "Point", coordinates: [r.lng, r.lat] }
-            }))
-        };
-        map.getSource('user-reports').setData(geojson);
-    }
-}
+            if (data) {
+                const geojson = {
+                    type: "FeatureCollection",
+                    features: data.map(r => ({
+                        type: "Feature",
+                        properties: { 
+                            db: r.db_level, 
+                            vibe: r.vibe_label, 
+                            id: r.id, 
+                            confirms: r.confirmations || 0,
+                            user_id: r.user_id 
+                        },
+                        geometry: { type: "Point", coordinates: [r.lng, r.lat] }
+                    }))
+                };
+                map.getSource('user-reports').setData(geojson);
+            }
+        }
 
         function setupReporting() {
-    const modal = document.getElementById('report-modal');
-    const slider = document.getElementById('vibe-slider');
-    
-    document.getElementById('add-report-btn').onclick = () => {
-        modal.style.display = 'flex';
-    };
-
-    document.getElementById('cancel-report').onclick = () => {
-        modal.style.display = 'none';
-        // FIX: Force the map to check its size and interactions again
-        map.resize(); 
-    };
+            const modal = document.getElementById('report-modal');
+            const slider = document.getElementById('vibe-slider');
+            document.getElementById('add-report-btn').onclick = () => modal.style.display = 'flex';
+            document.getElementById('cancel-report').onclick = () => { modal.style.display = 'none'; map.resize(); };
+            
             slider.oninput = (e) => {
                 const val = e.target.value;
                 document.getElementById('vibe-label').innerText = vibeData[val].label;
                 document.getElementById('vibe-desc').innerText = vibeData[val].desc;
             };
+
             document.getElementById('submit-report').onclick = async () => {
                 navigator.geolocation.getCurrentPosition(async (pos) => {
                     const vibe = vibeData[slider.value];
                     const { error } = await supabaseClient.from('self_reports').insert([{ 
-    lat: pos.coords.latitude, 
-    lng: pos.coords.longitude, 
-    db_level: vibe.db, 
-    vibe_label: vibe.label,
-    user_id: visitorId // Tag the report with your ID
-}]);
+                        lat: pos.coords.latitude, lng: pos.coords.longitude, 
+                        db_level: vibe.db, vibe_label: vibe.label, user_id: visitorId 
+                    }]);
                     if (!error) { modal.style.display = 'none'; fetchGlobalReports(); alert("Vibe reported!"); }
                 }, (err) => alert("Please enable GPS."));
             };
@@ -343,121 +309,88 @@ if (!visitorId) {
         function setupControls() {
             const slider = document.getElementById('slider');
             const day = document.getElementById('day-selector');
+            
             const update = () => {
                 const h = parseInt(slider.value);
-                const filter = ['all', ['==', ['get', 'hour'], h], ['==', ['get', 'day'], parseInt(day.value)]];
-                // Apply filter to static heatmap and sensor dots
-                ['noise-heat', 'sensor-dots', 'sensor-hitbox'].forEach(id => map.setFilter(id, filter));
+                const d = parseInt(day.value);
+                const filter = ['all', ['==', ['get', 'hour'], h], ['==', ['get', 'day'], d]];
+                
+                // Safety check: ensure layers exist before applying filter
+                ['noise-heat', 'sensor-dots', 'sensor-hitbox'].forEach(id => {
+                    if (map.getLayer(id)) {
+                        map.setFilter(id, filter);
+                    }
+                });
                 document.getElementById('active-hour').innerText = formatTime(h);
             };
+
             slider.oninput = update;
             day.onchange = update;
-            update();
+            update(); // Run initial filter
         }
 
-       window.confirmReport = async (id) => {
-    let visitorId = localStorage.getItem('vibe_visitor_id');
-    
-    // Check local storage first to prevent spam without hitting the DB
-    let confirmedReports = JSON.parse(localStorage.getItem('confirmed_reports') || "[]");
-    
-    if (confirmedReports.includes(id)) {
-        alert("You've already verified this!");
-        return;
-    }
+        window.confirmReport = async (id) => {
+            let confirmedReports = JSON.parse(localStorage.getItem('confirmed_reports') || "[]");
+            if (confirmedReports.includes(id)) { alert("You've already verified this!"); return; }
 
-    const { error } = await supabaseClient.rpc('increment_confirmations', { 
-        row_id: id, 
-        visitor_id: visitorId 
-    });
-    
-    if (error) {
-        alert(error.message.includes('already verified') ? "You've already verified this!" : "Error processing.");
-    } else {
-        // Success: Save the ID locally so they can't click it again
-        confirmedReports.push(id);
-        localStorage.setItem('confirmed_reports', JSON.stringify(confirmedReports));
-        
-        fetchGlobalReports();
-        alert("Thanks for verifying!");
-    }
-};
+            const { error } = await supabaseClient.rpc('increment_confirmations', { row_id: id, visitor_id: visitorId });
+            if (error) {
+                alert(error.message.includes('already verified') ? "You've already verified this!" : "Error processing.");
+            } else {
+                confirmedReports.push(id);
+                localStorage.setItem('confirmed_reports', JSON.stringify(confirmedReports));
+                fetchGlobalReports();
+                alert("Thanks for verifying!");
+            }
+        };
 
-        // Click interaction for Sensor Dots
         map.on('click', 'sensor-hitbox', (e) => {
-    const { db, hour } = e.features[0].properties;
-    new maplibregl.Popup()
-        .setLngLat(e.features[0].geometry.coordinates)
-        .setHTML(`
-            <div style="font-family: 'SN Pro', sans-serif;">
-                <div style="font-size: 10px; color: #888; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">Historical Sensor Data</div>
-                <div style="font-size: 14px; font-weight: bold; margin-bottom: 2px;">Recorded at ${formatTime(hour)}</div>
-                <div style="font-size: 24px; font-weight: 700; color: #ed6925;">${db} <span style="font-size: 12px;">dB</span></div>
-            </div>
-        `)
-        .addTo(map);
-});
+            const { db, hour } = e.features[0].properties;
+            new maplibregl.Popup()
+                .setLngLat(e.features[0].geometry.coordinates)
+                .setHTML(`<div style="font-family: 'SN Pro', sans-serif;">
+                    <div style="font-size: 10px; color: #888; text-transform: uppercase;">Historical Sensor Data</div>
+                    <div style="font-size: 14px; font-weight: bold;">Recorded at ${formatTime(hour)}</div>
+                    <div style="font-size: 24px; font-weight: 700; color: #ed6925;">${db} <span style="font-size: 12px;">dB</span></div>
+                </div>`).addTo(map);
+        });
 
-        // Click interaction for Student Reports
-       map.on('click', 'user-reports-layer', (e) => {
-    const p = e.features[0].properties;
-    
-    // Check if the current user owns this report
-    const isOwner = p.user_id === visitorId;
-    const deleteBtn = isOwner ? 
-        `<button onclick="deleteReport(${p.id})" style="margin-top:8px; background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; width:100%; font-size:11px;">Delete My Report</button>` : '';
+        map.on('click', 'user-reports-layer', (e) => {
+            const p = e.features[0].properties;
+            const isOwner = p.user_id === visitorId;
+            const deleteBtn = isOwner ? `<button onclick="deleteReport(${p.id})" style="margin-top:8px; background:#ff4d4d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; width:100%; font-size:11px;">Delete My Report</button>` : '';
 
-    new maplibregl.Popup()
-        .setLngLat(e.features[0].geometry.coordinates)
-        .setHTML(`
-            <div style="text-align:center; color:white;">
-                <div style="font-size:10px; color:#888; text-transform:uppercase;">Self Report</div>
-                <b style="color:#00f2ff; font-size:16px;">${p.vibe}</b><br>
-                <button onclick="confirmReport(${p.id})" style="margin-top:8px; background:#00f2ff; color:black; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Sounds Right! (${p.confirms})</button>
-                ${deleteBtn}
-            </div>
-        `).addTo(map);
-});
+            new maplibregl.Popup()
+                .setLngLat(e.features[0].geometry.coordinates)
+                .setHTML(`<div style="text-align:center; color:white;">
+                    <div style="font-size:10px; color:#888; text-transform:uppercase;">Self Report</div>
+                    <b style="color:#00f2ff; font-size:16px;">${p.vibe}</b><br>
+                    <button onclick="confirmReport(${p.id})" style="margin-top:8px; background:#00f2ff; color:black; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; width:100%;">Sounds Right! (${p.confirms})</button>
+                    ${deleteBtn}
+                </div>`).addTo(map);
+        });
 
         map.on('mouseenter', 'sensor-hitbox', () => map.getCanvas().style.cursor = 'pointer');
         map.on('mouseleave', 'sensor-hitbox', () => map.getCanvas().style.cursor = '');
         map.on('mouseenter', 'user-reports-layer', () => map.getCanvas().style.cursor = 'pointer');
         map.on('mouseleave', 'user-reports-layer', () => map.getCanvas().style.cursor = '');
         
-        
         const panel = document.getElementById('ui-panel');
-const toggleBtn = document.getElementById('toggle-panel-btn');
+        const toggleBtn = document.getElementById('toggle-panel-btn');
+        toggleBtn.onclick = () => {
+            panel.classList.toggle('minimized');
+            toggleBtn.innerText = panel.classList.contains('minimized') ? "⚙" : "−";
+        };
 
-toggleBtn.onclick = () => {
-    panel.classList.toggle('minimized');
-    // Change the icon from minus to gear/plus when hidden
-    toggleBtn.innerText = panel.classList.contains('minimized') ? "⚙" : "−";
-};
-
-window.deleteReport = async (id) => {
-    if (!confirm("Remove this report from the map?")) return;
-
-    // 1. Delete from the main table
-    // (The confirmations table will auto-delete due to 'ON DELETE CASCADE' in our SQL)
-    const { error } = await supabaseClient
-        .from('self_reports')
-        .delete()
-        .eq('id', id);
-
-    if (error) {
-        console.error("Delete error:", error);
-        alert("Could not delete: " + error.message);
-    } else {
-        // 2. Refresh the map data immediately
-        await fetchGlobalReports();
-        
-        // 3. Force close the popup
-        const popups = document.getElementsByClassName('maplibregl-popup');
-        while(popups[0]) popups[0].remove();
-        
-        alert("Report removed.");
-    }
-};
+        window.deleteReport = async (id) => {
+            if (!confirm("Remove this report?")) return;
+            const { error } = await supabaseClient.from('self_reports').delete().eq('id', id);
+            if (!error) {
+                await fetchGlobalReports();
+                const popups = document.getElementsByClassName('maplibregl-popup');
+                while(popups[0]) popups[0].remove();
+            }
+        };
     </script>
 </body>
 </html>
